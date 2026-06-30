@@ -314,6 +314,32 @@ export class SEOAnalyzer extends BaseAnalyzer {
       });
     }
 
+    // ── Click-to-call (tel:) ──────────────────────────────────────────────────
+    const hasClickToCall = /href=["']tel:/i.test(html);
+    if (!hasClickToCall && hasPhone) {
+      issues.push({
+        title: 'Phone number not linked as click-to-call',
+        severity: 'low',
+        description: 'A phone number is visible in the text but not wrapped in a <a href="tel:..."> link.',
+        whyItMatters: 'Mobile users cannot tap a plain text phone number to call. Click-to-call links increase mobile conversion rate significantly.',
+        recommendation: 'Wrap your phone number: <a href="tel:+97250XXXXXXX">050-XXXXXXX</a>',
+        estimatedImpact: '+2 points',
+      });
+    }
+
+    // ── WhatsApp link ─────────────────────────────────────────────────────────
+    const hasWhatsApp = /href=["'](?:https?:\/\/wa\.me|https?:\/\/api\.whatsapp\.com|whatsapp:\/\/send)/i.test(html);
+    if (!hasWhatsApp) {
+      issues.push({
+        title: 'No WhatsApp contact link',
+        severity: 'low',
+        description: 'No WhatsApp link (wa.me) found on the page.',
+        whyItMatters: 'WhatsApp is the most common communication channel for Israeli businesses. A WhatsApp button can double contact-form conversion rates.',
+        recommendation: 'Add a WhatsApp button: <a href="https://wa.me/97250XXXXXXX">Chat on WhatsApp</a>',
+        estimatedImpact: '+2 points',
+      });
+    }
+
     // ── Social sharing buttons ────────────────────────────────────────────────
     const hasSocialShare = /(?:sharer|share\?|addthis|sharethis|addtoany|facebook\.com\/sharer|twitter\.com\/intent|whatsapp:\/\/send|linkedin\.com\/shareArticle)/i.test(html);
     if (!hasSocialShare) {
@@ -324,6 +350,62 @@ export class SEOAnalyzer extends BaseAnalyzer {
         whyItMatters: 'Social shares drive referral traffic and social signals that correlate with better rankings.',
         recommendation: 'Add share buttons for Facebook, WhatsApp, LinkedIn and X/Twitter. Services like AddToAny make it easy.',
         estimatedImpact: '+1 point',
+      });
+    }
+
+    // ── Duplicate meta (og:url vs canonical vs actual URL) ───────────────────
+    const ogUrlMatch = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i)
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:url["']/i);
+    const ogUrl = ogUrlMatch?.[1]?.trim() ?? null;
+
+    const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i)
+      ?? html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
+    const canonicalUrl = canonicalMatch?.[1]?.trim() ?? null;
+
+    if (ogUrl && canonicalUrl && ogUrl !== canonicalUrl) {
+      issues.push({
+        title: 'og:url and canonical URL mismatch',
+        severity: 'medium',
+        description: `og:url: "${ogUrl}" ≠ canonical: "${canonicalUrl}"`,
+        whyItMatters: 'Mismatched canonical and og:url confuse search engines and social crawlers about the authoritative URL.',
+        recommendation: 'Ensure og:url and canonical both point to the same canonical version of the page.',
+        estimatedImpact: '+2 points',
+        details: `og:url: ${ogUrl}\ncanonical: ${canonicalUrl}`,
+      });
+    }
+
+    if (canonicalUrl && data.url && !canonicalUrl.includes(new URL(data.url).hostname)) {
+      issues.push({
+        title: 'Canonical URL points to a different domain',
+        severity: 'high',
+        description: `Canonical href="${canonicalUrl}" points to a different domain than the current page.`,
+        whyItMatters: 'A cross-domain canonical tells Google to index a different domain instead — this page will be excluded from search results.',
+        recommendation: 'Verify the canonical URL is correct. If this page should be indexed, change the canonical to match the current URL.',
+        estimatedImpact: '+10 points',
+        details: `Page domain: ${new URL(data.url).hostname}\nCanonical: ${canonicalUrl}`,
+      });
+    }
+
+    // ── Tech stack SEO notes ──────────────────────────────────────────────────
+    const cms = data.techStack?.cms;
+    if (cms === 'Wix') {
+      issues.push({
+        title: 'Wix detected — known SEO limitations',
+        severity: 'low',
+        description: 'Site is built on Wix, which has documented SEO limitations.',
+        whyItMatters: 'Wix generates JavaScript-heavy pages that can be slower to crawl. Server-side rendering is limited and JS bloat is common.',
+        recommendation: 'Ensure all meta tags, schema, and alt text are set in Wix SEO settings. Consider migrating to WordPress or Webflow for advanced SEO control.',
+        estimatedImpact: 'Informational',
+        details: 'Wix limitations: no full server-side rendering, limited schema control, slow JS payloads.',
+      });
+    } else if (cms === 'Squarespace') {
+      issues.push({
+        title: 'Squarespace detected — limited structured data support',
+        severity: 'low',
+        description: 'Site is built on Squarespace.',
+        whyItMatters: 'Squarespace has limited custom schema/JSON-LD support. Technical SEO customization is restricted.',
+        recommendation: 'Use all available Squarespace SEO fields. For advanced schema needs, consider migrating to a more flexible platform.',
+        estimatedImpact: 'Informational',
       });
     }
 
@@ -376,7 +458,12 @@ export class SEOAnalyzer extends BaseAnalyzer {
         hasRobotsTxt: data.hasRobotsTxt ?? null,
         robotsMeta: robotsMeta || 'index,follow',
         hasContactInfo: hasPhone || hasAddress || hasMapsEmbed,
+        hasClickToCall,
+        hasWhatsApp,
         hasSocialShare,
+        detectedCms: data.techStack?.cms ?? null,
+        detectedFramework: data.techStack?.framework ?? null,
+        techTags: data.techStack?.tags ?? [],
       },
     };
   }

@@ -107,7 +107,11 @@ function MetaBar({ analyzer, meta, isRtl }: { analyzer: string; meta: Record<str
     if (meta.hasRobotsTxt != null)    pills.push(<StatPill key="rb"  label="Robots.txt"                            value={meta.hasRobotsTxt ? '✓' : '✗'} ok={meta.hasRobotsTxt as boolean} />);
     if (meta.hasManifest != null)     pills.push(<StatPill key="mf"  label="PWA"                                   value={meta.hasManifest ? '✓' : '✗'} ok={meta.hasManifest as boolean} />);
     if (meta.hasContactInfo != null)  pills.push(<StatPill key="ci"  label={isRtl ? 'פרטי קשר' : 'Contact'}        value={meta.hasContactInfo ? '✓' : '✗'} ok={meta.hasContactInfo as boolean} />);
+    if (meta.hasClickToCall != null)  pills.push(<StatPill key="tc"  label="tel:"                                   value={meta.hasClickToCall ? '✓' : '✗'} ok={meta.hasClickToCall as boolean} />);
+    if (meta.hasWhatsApp != null)     pills.push(<StatPill key="wa"  label="WhatsApp"                               value={meta.hasWhatsApp ? '✓' : '✗'} ok={meta.hasWhatsApp as boolean} />);
     if (meta.hasSocialShare != null)  pills.push(<StatPill key="ss"  label={isRtl ? 'שיתוף' : 'Social share'}      value={meta.hasSocialShare ? '✓' : '✗'} ok={meta.hasSocialShare as boolean} />);
+    if (meta.detectedCms)            pills.push(<StatPill key="cms" label="CMS"                                    value={String(meta.detectedCms)} />);
+    if (meta.detectedFramework)      pills.push(<StatPill key="fw"  label="Framework"                              value={String(meta.detectedFramework)} />);
   }
 
   if (analyzer === 'performance') {
@@ -118,7 +122,11 @@ function MetaBar({ analyzer, meta, isRtl }: { analyzer: string; meta: Record<str
     if (meta.imageCount != null)           pills.push(<StatPill key="ic"  label={isRtl ? 'תמונות' : 'Images'}          value={`${meta.largeImageCount ?? 0}/${meta.imageCount} large`} ok={(meta.largeImageCount as number) === 0} />);
     if (meta.brokenImageCount != null && (meta.brokenImageCount as number) > 0)
                                            pills.push(<StatPill key="bi"  label={isRtl ? 'שבורות' : 'Broken imgs'}     value={meta.brokenImageCount as number} ok={false} />);
+    if (meta.pageWeightKb != null)         pills.push(<StatPill key="pw"  label={isRtl ? 'משקל עמוד' : 'Page weight'}   value={`~${meta.pageWeightKb}KB`} ok={(meta.pageWeightKb as number) < 1500} />);
+    if (meta.loadTime3g != null)           pills.push(<StatPill key="3g"  label="3G load"                              value={`~${meta.loadTime3g}s`} ok={(meta.loadTime3g as number) < 4} />);
     if (meta.externalScripts != null)      pills.push(<StatPill key="sc"  label={isRtl ? 'סקריפטים' : 'Scripts'}       value={meta.externalScripts as number} ok={(meta.externalScripts as number) <= 10} />);
+    if (meta.thirdPartyScripts != null && (meta.thirdPartyScripts as number) > 0)
+                                           pills.push(<StatPill key="3ps" label={isRtl ? 'צד ג׳' : '3rd party'}        value={meta.thirdPartyScripts as number} ok={(meta.thirdPartyScripts as number) <= 3} />);
     if (meta.renderBlockingScripts != null) pills.push(<StatPill key="rbs" label={isRtl ? 'JS חוסם' : 'Blocking JS'}  value={meta.renderBlockingScripts as number} ok={(meta.renderBlockingScripts as number) === 0} />);
     if (meta.renderBlockingCss != null && (meta.renderBlockingCss as number) > 3)
                                            pills.push(<StatPill key="rbc" label={isRtl ? 'CSS חוסם' : 'Blocking CSS'}  value={meta.renderBlockingCss as number} ok={false} />);
@@ -148,6 +156,23 @@ function MetaBar({ analyzer, meta, isRtl }: { analyzer: string; meta: Record<str
                                     pills.push(<StatPill key="umj" label={isRtl ? 'JS לא מוקטן' : 'Unminified JS'} value={meta.unminifiedJs as number} ok={false} />);
     if (meta.unminifiedCss != null && (meta.unminifiedCss as number) > 0)
                                     pills.push(<StatPill key="umc" label={isRtl ? 'CSS לא מוקטן' : 'Unminified CSS'} value={meta.unminifiedCss as number} ok={false} />);
+  }
+
+  if (analyzer === 'privacy') {
+    if (meta.trackerCount != null)       pills.push(<StatPill key="tc"  label={isRtl ? 'טרקרים' : 'Trackers'}        value={meta.trackerCount as number} ok={(meta.trackerCount as number) === 0} />);
+    if (meta.highRiskCount != null && (meta.highRiskCount as number) > 0)
+                                         pills.push(<StatPill key="hr"  label={isRtl ? 'סיכון גבוה' : 'High risk'}    value={meta.highRiskCount as number} ok={false} />);
+    if (meta.hasConsentBanner != null)   pills.push(<StatPill key="cb"  label={isRtl ? 'הסכמה' : 'Cookie consent'}   value={meta.hasConsentBanner ? '✓' : '✗'} ok={meta.hasConsentBanner as boolean} />);
+    if (meta.hasPrivacyPolicy != null)   pills.push(<StatPill key="pp"  label={isRtl ? 'פרטיות' : 'Privacy policy'}  value={meta.hasPrivacyPolicy ? '✓' : '✗'} ok={meta.hasPrivacyPolicy as boolean} />);
+    if (meta.hasAnalytics != null)       pills.push(<StatPill key="an"  label={isRtl ? 'אנליטיקס' : 'Analytics'}     value={meta.hasAnalytics ? '✓' : '✗'} ok={meta.hasAnalytics as boolean} />);
+  }
+
+  if (analyzer === 'links') {
+    if (meta.checkedLinks != null)       pills.push(<StatPill key="cl"  label={isRtl ? 'נבדקו' : 'Checked'}          value={meta.checkedLinks as number} />);
+    if (meta.brokenLinks != null)        pills.push(<StatPill key="bl"  label={isRtl ? 'שבורים' : 'Broken'}          value={meta.brokenLinks as number} ok={(meta.brokenLinks as number) === 0} />);
+    if (meta.redirectedLinks != null && (meta.redirectedLinks as number) > 0)
+                                         pills.push(<StatPill key="rl"  label={isRtl ? 'הפניות' : 'Redirects'}       value={meta.redirectedLinks as number} ok={false} />);
+    if (meta.hasCustom404 != null)       pills.push(<StatPill key="404" label="Custom 404"                            value={meta.hasCustom404 ? '✓' : '✗'} ok={meta.hasCustom404 as boolean} />);
   }
 
   if (analyzer === 'accessibility') {

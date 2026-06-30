@@ -8,7 +8,7 @@ import { SchemaAnalyzer } from './analyzers/schema.analyzer';
 import { MobileAnalyzer } from './analyzers/mobile.analyzer';
 import { PrivacyAnalyzer } from './analyzers/privacy.analyzer';
 import { LinksAnalyzer } from './analyzers/links.analyzer';
-import { BaseAnalyzer, WebsiteData, AnalyzerResult, FetchedImage } from './analyzers/base.analyzer';
+import { BaseAnalyzer, WebsiteData, AnalyzerResult, FetchedImage, TechStack } from './analyzers/base.analyzer';
 import { AIService, RoadmapItem } from './ai/ai.service';
 import { PSIService, CWVData } from './psi.service';
 
@@ -83,18 +83,22 @@ export class ScanEngineService {
     const fetchedImages = await this.probeImages(url, html);
     console.log(`[ScanEngine] Probed ${fetchedImages.length} images`);
 
-    // Probe robots.txt, sitemap.xml, and HTTPS redirect in parallel
+    // Probe robots.txt, sitemap.xml, HTTPS redirect, and custom 404 in parallel
     const origin = new URL(url).origin;
-    const [hasSitemap, hasRobotsTxt, httpRedirectsToHttps] = await Promise.all([
+    const [hasSitemap, hasRobotsTxt, httpRedirectsToHttps, hasCustom404] = await Promise.all([
       this.probeExists(`${origin}/sitemap.xml`),
       this.probeExists(`${origin}/robots.txt`),
       this.checkHttpsRedirect(url),
+      this.probe404(origin),
     ]);
+
+    const techStack = this.detectTechStack(html, headers);
 
     const websiteData: WebsiteData = {
       url, html, responseHeaders: headers, fetchedImages,
       fetchDurationMs: durationMs, htmlSizeBytes: sizeBytes,
       hasSitemap, hasRobotsTxt, httpRedirectsToHttps,
+      hasCustom404, techStack,
     };
 
     const results = await Promise.all(
@@ -177,6 +181,95 @@ export class ScanEngineService {
     } catch {
       return false;
     }
+  }
+
+  private async probe404(origin: string): Promise<boolean> {
+    try {
+      const path = `/optimizio-404-check-${Date.now()}`;
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 5_000);
+      const res = await fetch(`${origin}${path}`, {
+        headers: { 'User-Agent': UA },
+        signal: ctrl.signal,
+        redirect: 'follow',
+      });
+      clearTimeout(t);
+      if (res.status === 404) return true;
+      if (res.status === 200) {
+        const text = await res.text();
+        return /404|not found|page not found|עמוד לא נמצא/i.test(text.slice(0, 4000));
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  private detectTechStack(html: string, headers: Record<string, string>): TechStack {
+    const tags: string[] = [];
+    let cms: string | null = null;
+    let framework: string | null = null;
+
+    // meta generator (most reliable)
+    const genMatch = html.match(/<meta[^>]+name=["']generator["'][^>]+content=["']([^"']+)["']/i)
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']generator["']/i);
+    const gen = (genMatch?.[1] ?? '').toLowerCase();
+
+    if (gen.includes('wordpress')) { cms = 'WordPress'; tags.push('WordPress'); }
+    else if (gen.includes('squarespace')) { cms = 'Squarespace'; tags.push('Squarespace'); }
+    else if (gen.includes('wix')) { cms = 'Wix'; tags.push('Wix'); }
+    else if (gen.includes('webflow')) { cms = 'Webflow'; tags.push('Webflow'); }
+    else if (gen.includes('shopify')) { cms = 'Shopify'; tags.push('Shopify'); }
+    else if (gen.includes('joomla')) { cms = 'Joomla'; tags.push('Joomla'); }
+    else if (gen.includes('drupal')) { cms = 'Drupal'; tags.push('Drupal'); }
+    else if (gen.includes('ghost')) { cms = 'Ghost'; tags.push('Ghost'); }
+
+    // heuristic fallbacks
+    if (!cms) {
+      if (html.includes('wp-content/') || html.includes('wp-includes/')) { cms = 'WordPress'; tags.push('WordPress'); }
+      else if (html.includes('static.wixstatic.com') || html.includes('wix-code')) { cms = 'Wix'; tags.push('Wix'); }
+      else if (html.includes('squarespace-cdn.com')) { cms = 'Squarespace'; tags.push('Squarespace'); }
+      else if (html.includes('cdn.shopify.com') || html.includes('myshopify.com')) { cms = 'Shopify'; tags.push('Shopify'); }
+      else if (html.includes('uploads-ssl.webflow.com')) { cms = 'Webflow'; tags.push('Webflow'); }
+      else if (/\/sites\/default\/files\//i.test(html)) { cms = 'Drupal'; tags.push('Drupal'); }
+      else if (/\/components\/com_/i.test(html)) { cms = 'Joomla'; tags.push('Joomla'); }
+    }
+
+    // WordPress plugins
+    if (cms === 'WordPress') {
+      if (html.includes('elementor-')) tags.push('Elementor');
+      if (/divi-/i.test(html)) tags.push('Divi');
+      if (/woocommerce/i.test(html)) tags.push('WooCommerce');
+      if (/yoast/i.test(html)) tags.push('Yoast SEO');
+    }
+
+    // JS frameworks
+    if (html.includes('__NEXT_DATA__') || html.includes('/_next/static/')) {
+      framework = 'Next.js'; tags.push('Next.js');
+    } else if (html.includes('__NUXT__') || html.includes('/_nuxt/')) {
+      framework = 'Nuxt.js'; tags.push('Nuxt.js');
+    } else if (/data-reactroot|data-react-helmet/i.test(html)) {
+      framework = 'React'; tags.push('React');
+    } else if (html.includes('__vue_app__') || /\bVue\.js\b/.test(html)) {
+      framework = 'Vue.js'; tags.push('Vue.js');
+    } else if (/ng-version|ng-app/i.test(html)) {
+      framework = 'Angular'; tags.push('Angular');
+    }
+
+    // CSS frameworks
+    if (html.includes('bootstrap.min.css') || html.includes('bootstrap.bundle')) tags.push('Bootstrap');
+    if (/class="[^"]*(?:flex |grid |px-\d|py-\d|text-\w+-\d|rounded-|border-\w)[^"]*"/i.test(html)) tags.push('Tailwind CSS');
+
+    // Hosting / CDN from headers
+    const server = (headers['server'] ?? '').toLowerCase();
+    if (server.includes('cloudflare')) tags.push('Cloudflare');
+    else if (server.includes('vercel')) tags.push('Vercel');
+    else if (server.includes('nginx')) tags.push('Nginx');
+    else if (server.includes('apache')) tags.push('Apache');
+    const via = (headers['via'] ?? '').toLowerCase();
+    if (via.includes('cloudfront')) tags.push('AWS CloudFront');
+
+    return { cms, framework, tags: [...new Set(tags)] };
   }
 
   private async probeImages(baseUrl: string, html: string): Promise<FetchedImage[]> {

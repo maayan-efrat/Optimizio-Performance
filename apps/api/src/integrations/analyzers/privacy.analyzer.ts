@@ -22,12 +22,24 @@ const TRACKERS: TrackerDef[] = [
   { name: 'Segment',                 patterns: ['cdn.segment.com', 'segment.io'],                                                             category: 'analytics',    gdprRisk: 'medium' },
   { name: 'Amplitude',               patterns: ['cdn.amplitude.com', 'api.amplitude.com'],                                                   category: 'analytics',    gdprRisk: 'medium' },
   { name: 'Crisp Chat',              patterns: ['client.crisp.chat', 'crisp.chat'],                                                           category: 'crm',          gdprRisk: 'low' },
+  { name: 'Tawk.to',                 patterns: ['embed.tawk.to', 'tawk.to/s1/'],                                                             category: 'crm',          gdprRisk: 'low' },
+  { name: 'Tidio',                   patterns: ['code.tidio.co', 'tidio.com/widget'],                                                        category: 'crm',          gdprRisk: 'low' },
+  { name: 'Zendesk',                 patterns: ['static.zdassets.com', 'ekr.zdassets.com'],                                                  category: 'crm',          gdprRisk: 'medium' },
   { name: 'Twitter/X Pixel',         patterns: ['static.ads-twitter.com', 'platform.twitter.com/oct.js'],                                    category: 'advertising',  gdprRisk: 'high' },
+  { name: 'Taboola',                 patterns: ['cdn.taboola.com', 'trc.taboola.com'],                                                       category: 'advertising',  gdprRisk: 'high' },
+  { name: 'Outbrain',                patterns: ['amplify.outbrain.com', 'outbrain.com'],                                                     category: 'advertising',  gdprRisk: 'high' },
 ];
 
 const CONSENT_PLATFORMS = [
   'cookiebot', 'cookieconsent', 'onetrust', 'quantcast', 'cookiefirst',
   'trustarc', 'usercentrics', 'didomi', 'iubenda', 'termly', 'osano',
+  'cookieyes', 'cookie-yes', 'cookielaw', 'cookiepro', 'consentmanager',
+];
+
+const ANALYTICS_PATTERNS = [
+  'google-analytics.com', 'gtag/js', 'googletagmanager.com/gtm.js',
+  'segment.io', 'cdn.amplitude.com', 'cdn.mxpnl.com', 'matomo.js',
+  'piwik.js', 'plausible.io', 'umami.is', 'clarity.ms',
 ];
 
 export class PrivacyAnalyzer extends BaseAnalyzer {
@@ -121,7 +133,21 @@ export class PrivacyAnalyzer extends BaseAnalyzer {
       });
     }
 
-    // 5. Cookie set without Secure/SameSite (from HTML meta equiv cookies)
+    // 5. No analytics detected — flying blind
+    const hasAnalytics = ANALYTICS_PATTERNS.some(p => html.includes(p));
+    if (!hasAnalytics) {
+      issues.push({
+        title: 'No analytics platform detected',
+        severity: 'medium',
+        description: 'No Google Analytics, Tag Manager, Matomo, or other analytics tool found on this page.',
+        whyItMatters: "Without analytics you can't measure traffic, understand user behavior, or track conversions. You're making business decisions blind.",
+        recommendation: 'Install Google Analytics 4 (free) or a privacy-friendly alternative like Plausible or Matomo. Set up conversion goals for contact form submissions.',
+        estimatedImpact: 'Business insight',
+        details: 'Checked for: GA4, GTM, Segment, Amplitude, Mixpanel, Matomo, Plausible, Umami, Microsoft Clarity.',
+      });
+    }
+
+    // 6. Cookie set without Secure/SameSite (from HTML meta equiv cookies)
     const metaCookies = [...html.matchAll(/<meta[^>]+http-equiv=["']set-cookie["'][^>]*>/gi)];
     for (const [cookieTag] of metaCookies) {
       if (!cookieTag.toLowerCase().includes('secure') || !cookieTag.toLowerCase().includes('samesite')) {
@@ -144,8 +170,11 @@ export class PrivacyAnalyzer extends BaseAnalyzer {
       recommendations: [],
       metadata: {
         trackersDetected: detectedTrackers.map(t => t.name),
+        trackerCount: detectedTrackers.length,
+        highRiskCount: highRiskTrackers.length,
         hasConsentBanner: hasConsentPlatform || hasCookieLanguage,
         hasPrivacyPolicy,
+        hasAnalytics,
       },
     };
   }

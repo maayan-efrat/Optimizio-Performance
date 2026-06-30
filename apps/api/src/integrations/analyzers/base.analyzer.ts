@@ -18,6 +18,12 @@ export interface AnalyzerResult {
   metadata?: Record<string, unknown>;
 }
 
+export interface TechStack {
+  cms: string | null;
+  framework: string | null;
+  tags: string[];
+}
+
 export interface FetchedImage {
   src: string;
   size?: number;
@@ -40,6 +46,8 @@ export interface WebsiteData {
   hasSitemap?: boolean;
   hasRobotsTxt?: boolean;
   httpRedirectsToHttps?: boolean;
+  hasCustom404?: boolean;
+  techStack?: TechStack;
 }
 
 export abstract class BaseAnalyzer {

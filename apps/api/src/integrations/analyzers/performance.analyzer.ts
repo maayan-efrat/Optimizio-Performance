@@ -297,6 +297,91 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
       });
     }
 
+    // ── Third-party script performance impact ─────────────────────────────────
+    const THIRD_PARTY_DOMAINS = [
+      'googletagmanager.com', 'google-analytics.com', 'connect.facebook.net',
+      'static.hotjar.com', 'widget.intercom.io', 'js.intercom.io',
+      'cdn.segment.com', 'cdn.amplitude.com', 'snap.licdn.com',
+      'analytics.tiktok.com', 'static.ads-twitter.com', 'client.crisp.chat',
+      'tawk.to', 'cdn.clarity.ms', 'js.hs-scripts.com', 'static.zdassets.com',
+    ];
+    const scriptSrcs = [...html.matchAll(/<script[^>]+src=["']([^"']+)["'][^>]*>/gi)].map(m => m[1]);
+    const thirdPartyScripts = scriptSrcs.filter(src =>
+      THIRD_PARTY_DOMAINS.some(d => src.includes(d))
+    );
+    if (thirdPartyScripts.length > 3) {
+      issues.push({
+        title: `${thirdPartyScripts.length} third-party scripts — hidden performance tax`,
+        severity: thirdPartyScripts.length > 6 ? 'high' : 'medium',
+        description: `${thirdPartyScripts.length} analytics, ad, and chat scripts are loaded on this page.`,
+        whyItMatters: 'Each third-party script adds 50-500ms of main-thread blocking time, network requests, and potential privacy risk.',
+        recommendation: 'Load non-critical scripts (chat, heatmaps) asynchronously or only after user interaction. Use Google Tag Manager to consolidate and async-load all tracking scripts.',
+        estimatedImpact: '+5-10 points',
+        affectedUrls: thirdPartyScripts,
+        details: `${thirdPartyScripts.length} third-party scripts. Each adds ~50-300ms. Total estimated overhead: ~${thirdPartyScripts.length * 150}ms.`,
+      });
+    }
+
+    // ── Video performance ─────────────────────────────────────────────────────
+    const videoTags = [...html.matchAll(/<video([^>]*)>/gi)];
+    for (const [, attrs] of videoTags) {
+      const hasAutoplay = /autoplay/i.test(attrs);
+      const hasMuted = /muted/i.test(attrs);
+      const preloadMatch = attrs.match(/preload=["']([^"']+)["']/i);
+      const preload = preloadMatch?.[1]?.toLowerCase() ?? 'auto';
+
+      if (hasAutoplay && !hasMuted) {
+        issues.push({
+          title: 'Video with autoplay but not muted',
+          severity: 'high',
+          description: 'A <video> element uses autoplay without the muted attribute.',
+          whyItMatters: 'Browsers block unmuted autoplay videos. The video will silently fail to play, and Chrome may suspend it, wasting bandwidth.',
+          recommendation: 'Add the muted attribute: <video autoplay muted loop playsinline>',
+          estimatedImpact: '+3 points',
+        });
+      }
+      if (preload === 'auto' || preload === 'metadata') {
+        issues.push({
+          title: 'Video preloads automatically — delays page load',
+          severity: 'medium',
+          description: `Video has preload="${preload}" — the browser downloads it before the user requests it.`,
+          whyItMatters: 'Auto-preloading video files can add MBs of unnecessary downloads, slowing page load significantly on mobile.',
+          recommendation: 'Set preload="none" for decorative videos or videos below the fold. Use poster attribute for a placeholder thumbnail.',
+          estimatedImpact: '+3-8 points',
+          details: `Found preload="${preload}". Recommended: preload="none" with a poster image.`,
+        });
+        break; // report once for multiple videos
+      }
+    }
+
+    // ── Page weight + load time estimate ──────────────────────────────────────
+    const imageSizeBytes = images.reduce((s, img) => s + (img.size ?? 0), 0);
+    const pageWeightKb = Math.round((htmlSizeKb * 1024 + imageSizeBytes) / 1024);
+    const loadTime4g = (pageWeightKb / 5000).toFixed(1);  // ~5 MB/s on 4G
+    const loadTime3g = (pageWeightKb / 750).toFixed(1);   // ~750 KB/s on 3G
+
+    if (pageWeightKb > 3000) {
+      issues.push({
+        title: `Page weight very high — ~${pageWeightKb}KB (HTML + images)`,
+        severity: pageWeightKb > 6000 ? 'critical' : 'high',
+        description: `Estimated page weight: ${pageWeightKb}KB. 3G load time: ~${loadTime3g}s. 4G: ~${loadTime4g}s.`,
+        whyItMatters: '50% of mobile users abandon pages that take more than 3 seconds to load. Heavy pages kill conversions.',
+        recommendation: 'Compress and resize images, enable server-side Gzip/Brotli, and defer non-critical assets.',
+        estimatedImpact: '+8-15 points',
+        details: `HTML: ${htmlSizeKb}KB + Images: ${Math.round(imageSizeBytes / 1024)}KB = ~${pageWeightKb}KB total.`,
+      });
+    } else if (pageWeightKb > 1500) {
+      issues.push({
+        title: `Page weight moderate — ~${pageWeightKb}KB`,
+        severity: 'medium',
+        description: `Estimated page weight: ${pageWeightKb}KB. 3G load: ~${loadTime3g}s. 4G: ~${loadTime4g}s.`,
+        whyItMatters: 'Google recommends pages under 1.6MB for good Core Web Vitals scores.',
+        recommendation: 'Optimize images (WebP, compression) and enable HTTP compression on the server.',
+        estimatedImpact: '+4 points',
+        details: `HTML: ${htmlSizeKb}KB + Images: ${Math.round(imageSizeBytes / 1024)}KB total.`,
+      });
+    }
+
     const score = this.calculateScore(issues);
     return {
       analyzer: this.name,
@@ -309,14 +394,19 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
         hasCacheControl: !!cacheControl,
         cacheControl: cacheControl || null,
         htmlSizeKb,
+        pageWeightKb,
+        loadTime3g: parseFloat(loadTime3g),
+        loadTime4g: parseFloat(loadTime4g),
         imageCount: images.length,
         brokenImageCount: brokenImages.length,
         largeImageCount: largeImages.length,
         imagesWithLazy: images.filter(i => i.hasLazy).length,
         externalScripts: totalExternalScripts,
+        thirdPartyScripts: thirdPartyScripts.length,
         renderBlockingScripts: blockingJs.length,
         renderBlockingCss: blockingCss.length,
         externalFonts: fontLinks.length,
+        videoCount: videoTags.length,
         hasPreconnect,
         hasPreload,
         hasDnsPrefetch,
