@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center text-[#A1A1AA]">
           {isRtl ? 'קישור לא תקף.' : 'Invalid link.'}{' '}
-          <Link href="/forgot-password" className="text-violet-400">{isRtl ? 'נסי שוב' : 'Try again'}</Link>
+          <Link href="/forgot-password" className="text-violet-400">{isRtl ? 'נסו שוב' : 'Try again'}</Link>
         </div>
       </main>
     );
@@ -82,7 +82,7 @@ export default function ResetPasswordPage() {
             <>
               <div className="mb-8">
                 <h1 className="text-2xl font-semibold text-[#F9FAFB]">
-                  {isRtl ? 'בחרי סיסמה חדשה' : 'Choose a new password'}
+                  {isRtl ? 'בחרו סיסמה חדשה' : 'Choose a new password'}
                 </h1>
                 <p className="mt-2 text-sm text-[#A1A1AA]">
                   {isRtl ? 'הסיסמה חייבת להכיל לפחות 8 תווים.' : 'Password must be at least 8 characters.'}

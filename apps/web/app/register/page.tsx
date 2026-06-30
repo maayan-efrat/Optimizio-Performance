@@ -27,6 +27,28 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
+
+  const EMAIL_DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'walla.co.il', 'bezeqint.net', 'zahav.net.il'];
+
+  function handleEmailChange(value: string) {
+    setEmail(value);
+    const atIdx = value.indexOf('@');
+    if (atIdx === -1 || atIdx === value.length - 1) {
+      // Just typed @, show all domains
+      if (atIdx !== -1) {
+        setEmailSuggestions(EMAIL_DOMAINS.map(d => `${value.slice(0, atIdx + 1)}${d}`));
+      } else {
+        setEmailSuggestions([]);
+      }
+      return;
+    }
+    const typed = value.slice(atIdx + 1).toLowerCase();
+    const matches = EMAIL_DOMAINS
+      .filter(d => d.startsWith(typed))
+      .map(d => `${value.slice(0, atIdx + 1)}${d}`);
+    setEmailSuggestions(matches);
+  }
 
   const passwordOk = password.length >= 8;
   const iconSide = isRtl ? 'right-3' : 'left-3';
@@ -135,9 +157,32 @@ export default function RegisterPage() {
               <label htmlFor="email" className="block text-sm font-medium text-[#F9FAFB] mb-2">{t.email}</label>
               <div className="relative">
                 <Mail className={`absolute ${iconSide} top-3 h-4 w-4 text-[#A1A1AA]`} />
-                <input id="email" type="email" placeholder={t.emailPlaceholder} required value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full ${inputPad} py-2.5 rounded-xl border border-white/10 bg-[#09090B] text-[#F9FAFB] placeholder:text-[#A1A1AA] focus:border-[#EC4899] focus:outline-none`} />
+                <input
+                  id="email"
+                  type="email"
+                  placeholder={t.emailPlaceholder}
+                  required
+                  value={email}
+                  autoComplete="off"
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  onBlur={() => setTimeout(() => setEmailSuggestions([]), 150)}
+                  className={`w-full ${inputPad} py-2.5 rounded-xl border border-white/10 bg-[#09090B] text-[#F9FAFB] placeholder:text-[#A1A1AA] focus:border-[#EC4899] focus:outline-none`}
+                />
+                {emailSuggestions.length > 0 && (
+                  <ul className="absolute z-20 top-full mt-1 w-full rounded-xl border border-white/10 bg-[#18181B] shadow-xl overflow-hidden">
+                    {emailSuggestions.map((s) => (
+                      <li key={s}>
+                        <button
+                          type="button"
+                          onMouseDown={() => { setEmail(s); setEmailSuggestions([]); }}
+                          className="w-full px-4 py-2.5 text-sm text-start text-[#F9FAFB] hover:bg-white/10 transition-colors"
+                        >
+                          {s}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 

@@ -15,13 +15,20 @@ function parseDomain(url: string): string {
   catch { return url; }
 }
 
+function normalizeUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 const SCAN_STEPS_HE = [
-  'בודקת נגישות האתר...',
-  'מנתחת ביצועים...',
-  'סורקת SEO...',
-  'בודקת אבטחה...',
-  'מנתחת ניידות...',
-  'מסיימת...',
+  'בודק נגישות האתר...',
+  'מנתח ביצועים...',
+  'סורק SEO...',
+  'בודק אבטחה...',
+  'מנתח ניידות...',
+  'מסיים ניתוח...',
 ];
 const SCAN_STEPS_EN = [
   'Reaching your website...',
@@ -43,16 +50,10 @@ export default function OnboardingPage() {
   const [scanStep, setScanStep] = useState(0);
   const [scanId, setScanId] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const steps = isRtl ? SCAN_STEPS_HE : SCAN_STEPS_EN;
-
-  function normalizeUrl(raw: string): string {
-    const trimmed = raw.trim();
-    if (!trimmed) return trimmed;
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
-  }
 
   // If user already has projects, skip onboarding
   useEffect(() => {
@@ -62,12 +63,13 @@ export default function OnboardingPage() {
     }).catch(() => {});
   }, [user, router]);
 
-  function normalizeUrl(raw: string): string {
-    const trimmed = raw.trim();
-    if (!trimmed) return trimmed;
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
-  }
+  // Clean up intervals on unmount
+  useEffect(() => {
+    return () => {
+      clearInterval(animIntervalRef.current!);
+      clearInterval(pollIntervalRef.current!);
+    };
+  }, []);
 
   async function handleStart() {
     const finalUrl = normalizeUrl(url);
@@ -76,26 +78,55 @@ export default function OnboardingPage() {
     setStep('scanning');
     setScanStep(0);
 
-    intervalRef.current = setInterval(() => {
+    // Animate steps forward while waiting for scan
+    animIntervalRef.current = setInterval(() => {
       setScanStep(cur => {
-        if (cur >= steps.length - 2) { clearInterval(intervalRef.current!); return cur; }
+        if (cur >= steps.length - 2) { clearInterval(animIntervalRef.current!); return cur; }
         return cur + 1;
       });
     }, 900);
 
+    let createdScanId: string;
     try {
       const domain = parseDomain(finalUrl);
       const project = await api.projects.create({ name: domain, domain: finalUrl });
       const scan = await api.scans.create({ projectId: project.id, url: finalUrl, locale });
-      clearInterval(intervalRef.current!);
-      setScanStep(steps.length - 1);
+      createdScanId = scan.id;
       setScanId(scan.id);
-      setTimeout(() => setStep('done'), 600);
     } catch (err) {
-      clearInterval(intervalRef.current!);
+      clearInterval(animIntervalRef.current!);
       setStep('url');
-      setError(err instanceof Error ? err.message : (isRtl ? 'שגיאה, נסי שנית' : 'Error, please try again'));
+      setError(err instanceof Error ? err.message : (isRtl ? 'שגיאה, נסו שנית' : 'Error, please try again'));
+      return;
     }
+
+    // Poll until scan completes
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const { status, progressPercent } = await api.scans.getProgress(createdScanId);
+
+        // Map backend progress to step index
+        const stepIdx = Math.min(
+          Math.floor((progressPercent / 100) * (steps.length - 1)),
+          steps.length - 2
+        );
+        setScanStep(prev => Math.max(prev, stepIdx));
+
+        if (status === 'completed') {
+          clearInterval(pollIntervalRef.current!);
+          clearInterval(animIntervalRef.current!);
+          setScanStep(steps.length - 1);
+          setTimeout(() => setStep('done'), 600);
+        } else if (status === 'failed') {
+          clearInterval(pollIntervalRef.current!);
+          clearInterval(animIntervalRef.current!);
+          setStep('url');
+          setError(isRtl ? 'הסריקה נכשלה. נסו שנית.' : 'Scan failed. Please try again.');
+        }
+      } catch {
+        // ignore transient polling errors
+      }
+    }, 2500);
   }
 
   return (
@@ -129,19 +160,19 @@ export default function OnboardingPage() {
 
                 <h1 className="text-2xl font-bold text-[#F9FAFB] text-center mb-2">
                   {isRtl
-                    ? `ברוכה הבאה, ${user?.name?.split(' ')[0] ?? ''}! 🎉`
+                    ? `שלום, ${user?.name?.split(' ')[0] ?? ''}! 🎉`
                     : `Welcome, ${user?.name?.split(' ')[0] ?? ''}! 🎉`}
                 </h1>
                 <p className="text-[#A1A1AA] text-center text-sm mb-8">
                   {isRtl
-                    ? 'בואי נסרוק את האתר שלך ונגלה מה אפשר לשפר. זה לוקח כ-30 שניות.'
+                    ? 'בואו נסרוק את האתר שלכם ונגלה מה אפשר לשפר. זה לוקח כ-30 שניות.'
                     : "Let's scan your website and see what can be improved. Takes about 30 seconds."}
                 </p>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-[#F9FAFB] mb-2">
-                      {isRtl ? 'כתובת האתר שלך' : 'Your website URL'}
+                      {isRtl ? 'כתובת האתר שלכם' : 'Your website URL'}
                     </label>
                     <input
                       type="text"
@@ -165,12 +196,12 @@ export default function OnboardingPage() {
                     disabled={!url.trim()}
                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 py-3 font-semibold text-white hover:from-violet-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isRtl ? 'התחילי סריקה' : 'Start Scan'}
+                    {isRtl ? 'התחילו סריקה' : 'Start Scan'}
                     <ArrowRight className={`h-4 w-4 ${isRtl ? 'rotate-180' : ''}`} />
                   </button>
 
                   <p className="text-center text-xs text-[#64748B]">
-                    {isRtl ? 'הסריקה הראשונה חינמית — 150 קרדיטים ממתינים לך' : 'First scan is free — 150 credits are waiting for you'}
+                    {isRtl ? 'הסריקה הראשונה חינמית — 300 קרדיטים ממתינים לכם' : 'First scan is free — 300 credits waiting for you'}
                   </p>
                 </div>
               </motion.div>
@@ -191,7 +222,7 @@ export default function OnboardingPage() {
                 </div>
 
                 <h2 className="text-xl font-bold text-[#F9FAFB] mb-2">
-                  {isRtl ? 'סורקת את האתר...' : 'Scanning your website...'}
+                  {isRtl ? 'סורק את האתר...' : 'Scanning your website...'}
                 </h2>
                 <p className="text-[#A1A1AA] text-sm mb-8">
                   {parseDomain(normalizeUrl(url))}
@@ -237,11 +268,11 @@ export default function OnboardingPage() {
                 </div>
 
                 <h2 className="text-2xl font-bold text-[#F9FAFB] mb-3">
-                  {isRtl ? 'הדוח שלך מוכן! 🎉' : 'Your report is ready! 🎉'}
+                  {isRtl ? 'הדוח שלכם מוכן!' : 'Your report is ready!'}
                 </h2>
                 <p className="text-[#A1A1AA] text-sm mb-8">
                   {isRtl
-                    ? 'גילינו כמה נקודות שאפשר לשפר. לחצי לראות את הדוח המלא.'
+                    ? 'גילינו כמה נקודות שאפשר לשפר. לחצו לראות את הדוח המלא.'
                     : 'We found some areas to improve. Click to see your full report.'}
                 </p>
 
@@ -251,7 +282,7 @@ export default function OnboardingPage() {
                       href={`/report/${scanId}` as any}
                       className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 py-3 font-semibold text-white hover:from-violet-600 hover:to-blue-600 transition-all"
                     >
-                      {isRtl ? 'צפי בדוח המלא' : 'View Full Report'}
+                      {isRtl ? 'צפו בדוח המלא' : 'View Full Report'}
                       <ArrowRight className={`h-4 w-4 ${isRtl ? 'rotate-180' : ''}`} />
                     </Link>
                   )}
@@ -270,5 +301,4 @@ export default function OnboardingPage() {
       </main>
     </ProtectedLayout>
   );
-
 }

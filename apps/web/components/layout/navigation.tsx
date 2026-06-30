@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, LogOut, Zap } from 'lucide-react';
+import { Menu, X, LogOut, Zap, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/auth';
 import { useLocale } from '@/contexts/locale';
@@ -19,6 +19,8 @@ const dashboardItems = [
   { href: '/reports' as string, labelHe: 'דוחות', labelEn: 'Reports' },
   { href: '/settings' as string, labelHe: 'הגדרות', labelEn: 'Settings' },
 ];
+
+const adminItem = { href: '/admin' as string, labelHe: 'ניהול', labelEn: 'Admin' };
 
 export function Navigation() {
   const pathname = usePathname();
@@ -82,6 +84,19 @@ export function Navigation() {
                 {label(item)}
               </Link>
             ))}
+            {user?.role === 'admin' && (
+              <Link
+                href="/admin"
+                className={`flex items-center gap-1.5 text-sm transition-colors ${
+                  pathname === '/admin'
+                    ? 'text-violet-400 font-medium'
+                    : 'text-[#9b9dc9] hover:text-violet-300'
+                }`}
+              >
+                <Shield className="h-3.5 w-3.5" />
+                {isRtl ? adminItem.labelHe : adminItem.labelEn}
+              </Link>
+            )}
           </div>
 
           {/* Right side */}
@@ -119,6 +134,14 @@ export function Navigation() {
 
             {user ? (
               <>
+                {!isDashboard && (
+                  <Link
+                    href="/dashboard"
+                    className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90 transition shadow-lg shadow-violet-500/25"
+                  >
+                    {isRtl ? 'לוח בקרה' : 'Dashboard'}
+                  </Link>
+                )}
                 <span className="text-sm text-[#9b9dc9]">{user.name}</span>
                 <button
                   onClick={handleLogout}
@@ -137,7 +160,7 @@ export function Navigation() {
                   href="/register"
                   className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition shadow-lg shadow-violet-500/25"
                 >
-                  {isRtl ? 'התחילי בחינם' : 'Start Free'}
+                  {isRtl ? 'התחילו בחינם' : 'Start Free'}
                 </Link>
               </>
             )}
@@ -166,6 +189,16 @@ export function Navigation() {
                 {label(item)}
               </Link>
             ))}
+            {user?.role === 'admin' && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 text-sm text-violet-300 hover:text-violet-200"
+                onClick={() => setMobileOpen(false)}
+              >
+                <Shield className="h-3.5 w-3.5" />
+                {isRtl ? adminItem.labelHe : adminItem.labelEn}
+              </Link>
+            )}
             <div className="border-t border-violet-500/15 pt-4 space-y-3">
               <div className="flex gap-2">
                 <button onClick={() => setLocale('he')} className={`text-sm px-3 py-1 rounded-full border border-violet-500/20 ${locale === 'he' ? 'bg-violet-500/20 text-[#f0f4ff]' : 'text-[#9b9dc9]'}`}>עברית</button>
@@ -173,6 +206,15 @@ export function Navigation() {
               </div>
               {user ? (
                 <>
+                  {!isDashboard && (
+                    <Link
+                      href="/dashboard"
+                      className="block text-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/25"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {isRtl ? 'לוח בקרה' : 'Dashboard'}
+                    </Link>
+                  )}
                   <p className="text-sm text-[#9b9dc9]">{user.name}</p>
                   {user.credits !== undefined && (
                     <Link
@@ -202,7 +244,7 @@ export function Navigation() {
                     className="block text-center rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/25"
                     onClick={() => setMobileOpen(false)}
                   >
-                    {isRtl ? 'התחילי בחינם' : 'Start Free'}
+                    {isRtl ? 'התחילו בחינם' : 'Start Free'}
                   </Link>
                 </>
               )}

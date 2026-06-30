@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
       if (!res.ok) throw new Error();
       setSent(true);
     } catch {
-      setError(isRtl ? 'שגיאה. נסי שוב.' : 'Error. Please try again.');
+      setError(isRtl ? 'שגיאה. נסו שוב.' : 'Error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
                 </div>
               </div>
               <h1 className="text-xl font-bold text-[#F9FAFB] mb-3">
-                {isRtl ? 'בדקי את תיבת הדואר! 📬' : 'Check your inbox! 📬'}
+                {isRtl ? 'בדקו את תיבת הדואר! 📬' : 'Check your inbox! 📬'}
               </h1>
               <p className="text-[#A1A1AA] text-sm mb-6">
                 {isRtl
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
                 </h1>
                 <p className="mt-2 text-sm text-[#A1A1AA]">
                   {isRtl
-                    ? 'הכניסי את כתובת המייל שלך ונשלח קישור לאיפוס סיסמה.'
+                    ? 'הכניסו את כתובת המייל שלכם ונשלח קישור לאיפוס סיסמה.'
                     : "Enter your email and we'll send you a reset link."}
                 </p>
               </div>
@@ -100,8 +100,8 @@ export default function ForgotPasswordPage() {
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 py-3 font-semibold text-white hover:from-violet-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading
-                    ? (isRtl ? 'שולחת...' : 'Sending...')
-                    : (isRtl ? 'שלחי לי קישור לאיפוס' : 'Send reset link')}
+                    ? (isRtl ? 'שולח...' : 'Sending...')
+                    : (isRtl ? 'שלחו קישור לאיפוס' : 'Send reset link')}
                   {!loading && <ArrowRight className={`h-4 w-4 ${isRtl ? 'rotate-180' : ''}`} />}
                 </button>
               </form>
@@ -109,7 +109,7 @@ export default function ForgotPasswordPage() {
               <p className="mt-6 text-center text-sm text-[#A1A1AA]">
                 {isRtl ? 'נזכרת?' : 'Remember?'}{' '}
                 <Link href="/login" className="text-violet-400 hover:text-violet-300">
-                  {isRtl ? 'התחברי' : 'Sign in'}
+                  {isRtl ? 'התחברו' : 'Sign in'}
                 </Link>
               </p>
             </>

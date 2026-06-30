@@ -170,6 +170,8 @@ export const api = {
       request<{ url: string }>('/payments/checkout', { method: 'POST', body: JSON.stringify({ packageId }) }),
     getCredits: () =>
       request<{ credits: number; paymentsEnabled: boolean }>('/payments/credits'),
+    deductCredits: (amount: number) =>
+      request<{ credits: number }>('/payments/deduct', { method: 'POST', body: JSON.stringify({ amount }) }),
   },
   scans: {
     create: (body: { projectId: string; url: string; locale?: string }) =>
@@ -183,5 +185,11 @@ export const api = {
     listByProject: (projectId: string) => request<Scan[]>(`/scans/project/${projectId}`),
     compare: (urls: string[]) =>
       request<CompareResult[]>('/scans/compare', { method: 'POST', body: JSON.stringify({ urls }) }),
+    saveExport: (scanId: string, userContext: string, lang: string) =>
+      request<{ credits: number; exportId: string; exportCount: number }>(`/scans/${scanId}/export-prompt`, {
+        method: 'POST', body: JSON.stringify({ userContext, lang }),
+      }),
+    getExportCount: (scanId: string) =>
+      request<{ count: number }>(`/scans/${scanId}/export-count`),
   },
 };

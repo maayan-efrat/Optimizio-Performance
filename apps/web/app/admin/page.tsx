@@ -18,7 +18,7 @@ type Stats = { totalUsers: number; totalScans: number; totalProjects: number; sc
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, refreshCredits } = useAuth();
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -46,6 +46,7 @@ export default function AdminPage() {
       const updated = await api.admin.updateCredits(userId, num);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, credits: updated.credits } : u));
       setEditingCredits(null);
+      if (userId === user?.id) await refreshCredits();
     } finally {
       setSaving(null);
     }

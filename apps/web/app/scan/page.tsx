@@ -10,6 +10,7 @@ import { ProtectedLayout } from '@/components/layout/protected-layout';
 import { useLocale } from '@/contexts/locale';
 import { getDictionary } from '@/lib/i18n';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/auth';
 
 function parseDomain(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ''); }
@@ -18,6 +19,7 @@ function parseDomain(url: string): string {
 
 export default function ScanPage() {
   const router = useRouter();
+  const { refreshCredits } = useAuth();
   const { locale } = useLocale();
   const t = getDictionary(locale).scan;
   const isRtl = locale === 'he';
@@ -48,6 +50,7 @@ export default function ScanPage() {
           clearInterval(pollRef.current!);
           clearInterval(intervalRef.current!);
           setActiveStep(t.steps.length - 1);
+          refreshCredits();
           setTimeout(() => router.push(`/report/${pollScanId}`), 800);
         } else if (status === 'failed') {
           clearInterval(pollRef.current!);
@@ -85,7 +88,10 @@ export default function ScanPage() {
 
     try {
       const domain = parseDomain(url);
-      const project = await api.projects.create({ name: domain, domain: url });
+      // Reuse existing project for this domain instead of creating duplicates
+      const existing = await api.projects.list();
+      const match = existing.find(p => parseDomain(p.domain) === domain || p.domain === url);
+      const project = match ?? await api.projects.create({ name: domain, domain: url });
       const scan = await api.scans.create({ projectId: project.id, url, locale });
       setPollScanId(scan.id); // start polling
     } catch (err) {

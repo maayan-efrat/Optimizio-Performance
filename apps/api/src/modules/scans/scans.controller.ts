@@ -56,6 +56,22 @@ export class ScansController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post(':id/export-prompt')
+  saveExport(
+    @Param('id') id: string,
+    @Body() body: { userContext?: string; lang?: string },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.scansService.saveExport(id, user.id, body.userContext ?? '', body.lang ?? 'he');
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/export-count')
+  getExportCount(@Param('id') id: string) {
+    return this.scansService.getExportCount(id).then(count => ({ count }));
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   get(@Param('id') id: string) {
     return this.scansService.get(id);

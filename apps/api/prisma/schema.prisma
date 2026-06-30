@@ -14,7 +14,7 @@ model User {
   password             String?
   googleId             String?   @unique
   role                 String    @default("user")
-  credits              Int       @default(150)
+  credits              Int       @default(300)
   stripeCustomerId     String?
   emailVerified        Boolean   @default(false)
   emailVerifyToken     String?
@@ -24,7 +24,8 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  projects  Project[]
+  projects      Project[]
+  promptExports PromptExport[]
 }
 
 model Project {
@@ -70,5 +71,18 @@ model Scan {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  project   Project  @relation(fields: [projectId], references: [id])
+  project       Project        @relation(fields: [projectId], references: [id])
+  promptExports PromptExport[]
+}
+
+model PromptExport {
+  id          String   @id @default(cuid())
+  userId      String
+  scanId      String
+  userContext String   @default("")
+  lang        String   @default("he")
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  scan Scan @relation(fields: [scanId], references: [id])
 }

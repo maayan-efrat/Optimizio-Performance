@@ -61,13 +61,13 @@ function LoginForm() {
     } catch (err: any) {
       const msg = err?.message || '';
       if (msg === 'SERVER_OFFLINE') {
-        setError(isRtl ? 'השרת אינו זמין כרגע. ודאי שהוא רץ ונסי שוב.' : 'Server is offline. Make sure the API is running.');
+        setError(isRtl ? 'השרת אינו זמין כרגע. ודאו שהוא רץ ונסו שוב.' : 'Server is offline. Make sure the API is running.');
       } else if (msg.includes('אמת') || msg.includes('verif')) {
-        setError(isRtl ? 'יש לאמת את כתובת המייל תחילה. בדקי את תיבת הדואר שלך.' : 'Please verify your email before logging in.');
+        setError(isRtl ? 'יש לאמת את כתובת המייל תחילה. בדקו את תיבת הדואר.' : 'Please verify your email before logging in.');
       } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('invalid')) {
         setError(isRtl ? 'כתובת מייל או סיסמה שגויים.' : 'Incorrect email or password.');
       } else if (msg.includes('429')) {
-        setError(isRtl ? 'יותר מדי ניסיונות. נסי שוב בעוד כמה דקות.' : 'Too many attempts. Try again in a few minutes.');
+        setError(isRtl ? 'יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.' : 'Too many attempts. Try again in a few minutes.');
       } else {
         setError(isRtl ? `שגיאה: ${msg}` : `Error: ${msg}`);
       }

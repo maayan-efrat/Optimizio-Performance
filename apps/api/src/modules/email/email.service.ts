@@ -225,10 +225,10 @@ export class EmailService {
     <h2>החשבון אומת בהצלחה! 🚀</h2>
     <p>כעת יש לך גישה מלאה לכלי ניתוח הביצועים שלנו.</p>
     <div class="credits">
-      <div class="credits-num">150</div>
+      <div class="credits-num">300</div>
       <div class="credits-label">קרדיטים מתנה לשימוש הראשון</div>
     </div>
-    <p>כל סריקה עולה 10 קרדיטים. תוכלי לרכוש עוד קרדיטים בכל עת מדף המחירים.</p>
+    <p>כל סריקה עולה 100 קרדיטים. תוכלו לרכוש עוד קרדיטים בכל עת מדף המחירים.</p>
   </div>
 </body>
 </html>`;

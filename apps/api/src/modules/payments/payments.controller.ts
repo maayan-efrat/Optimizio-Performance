@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, HttpCode } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../../common/guards/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -22,6 +22,17 @@ export class PaymentsController {
   @Get('credits')
   getCredits(@CurrentUser() user: { id: string }) {
     return this.payments.getCredits(user.id);
+  }
+
+  // POST /payments/deduct  { amount: number }
+  @UseGuards(JwtAuthGuard)
+  @Post('deduct')
+  @HttpCode(200)
+  deductCredits(
+    @CurrentUser() user: { id: string },
+    @Body() body: { amount: number },
+  ) {
+    return this.payments.deductCredits(user.id, body.amount);
   }
 
   // POST /payments/webhook — Cardcom server-to-server callback (no auth)

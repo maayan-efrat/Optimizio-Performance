@@ -58,9 +58,18 @@ export default function DashboardPage() {
         }));
         setProjectsWithScans(pairs);
 
-        if (pairs[0]?.latestScan) {
-          setLatestScan(pairs[0].latestScan);
-          setScanHistory(allScans[0].slice().reverse()); // oldest first for chart
+        // Find the project whose most recent scan is the newest overall
+        const withScans = pairs
+          .filter(p => p.latestScan !== null)
+          .sort((a, b) =>
+            new Date(b.latestScan!.createdAt).getTime() -
+            new Date(a.latestScan!.createdAt).getTime()
+          );
+        if (withScans[0]) {
+          const featured = withScans[0];
+          setLatestScan(featured.latestScan);
+          const idx = list.findIndex(p => p.id === featured.project.id);
+          setScanHistory(allScans[idx].slice().reverse()); // oldest first for chart
         }
       } catch {
         // show empty state

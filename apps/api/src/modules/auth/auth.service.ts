@@ -38,7 +38,7 @@ export class AuthService {
         emailVerifyToken: emailConfigured ? token : null,
         emailVerifyExpires: emailConfigured ? expires : null,
         emailVerified: !emailConfigured, // auto-verify when no email configured
-        credits: 150,
+        credits: 300,
       },
     });
 
@@ -129,7 +129,7 @@ export class AuthService {
           name: googleUser.name,
           googleId: googleUser.googleId,
           emailVerified: true,
-          credits: 150,
+          credits: 300,
         },
       });
       await this.emailService.sendWelcomeEmail(user.email, user.name);

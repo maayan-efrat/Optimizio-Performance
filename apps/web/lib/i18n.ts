@@ -242,9 +242,9 @@ export const dictionary = {
     // Landing
     siteName: 'Optimizio Performance',
     tagline: 'סורק ביצועים לאתרים מבוסס AI',
-    heroTitle: 'סרקי כל אתר וקבלי דוח ביצועים מלא תוך שניות.',
-    heroDescription: 'הכניסי URL ו-Optimizio מריץ ביקורת מלאה — ציוני ביצועים, SEO, נגישות ואבטחה — ואז מייצר מפת דרכים לתיקונים עם עדיפויות, מבוססת AI.',
-    primaryCta: 'התחילי בחינם',
+    heroTitle: 'סרקו כל אתר וקבלו דוח ביצועים מלא תוך שניות.',
+    heroDescription: 'הכניסו URL ו-Optimizio מריץ ביקורת מלאה — ציוני ביצועים, SEO, נגישות ואבטחה — ואז מייצר מפת דרכים לתיקונים עם עדיפויות, מבוססת AI.',
+    primaryCta: 'התחילו בחינם',
     secondaryCta: 'איך זה עובד',
     navFeatures: 'תכונות',
     navPricing: 'מחירים',
@@ -263,8 +263,8 @@ export const dictionary = {
 
     // Auth
     login: {
-      title: 'ברוכה השבה',
-      subtitle: 'התחברי לחשבון כדי להמשיך',
+      title: 'ברוך הבא',
+      subtitle: 'התחברו לחשבון כדי להמשיך',
       email: 'אימייל',
       emailPlaceholder: 'your@email.com',
       password: 'סיסמה',
@@ -301,7 +301,7 @@ export const dictionary = {
     // Dashboard
     dashboard: {
       commandCenter: 'מרכז פיקוד לביצועים',
-      welcomeBack: 'ברוכה השבה',
+      welcomeBack: 'שלום',
       monitoring: 'מנטרת',
       and: 'ועוד',
       moreProject: 'פרויקט נוסף',
@@ -326,16 +326,16 @@ export const dictionary = {
     // Scan
     scan: {
       badge: 'חוויית סריקה פרמיום',
-      title: 'הפעילי ניתוח אתר מבוסס AI תוך שניות.',
-      subtitle: 'הכניסי כל URL והמערכת תעבור על כל שלב בסריקה עם התקדמות מונפשת ודוח AI מלא.',
-      cardTitle: 'סרקי את האתר שלך',
-      cardDesc: 'הכניסי URL כדי להתחיל ניתוח חדש מבוסס AI.',
+      title: 'הפעילו ניתוח אתר מבוסס AI תוך שניות.',
+      subtitle: 'הכניסו כל URL והמערכת תעבור על כל שלב בסריקה עם התקדמות מונפשת ודוח AI מלא.',
+      cardTitle: 'סרקו את האתר שלכם',
+      cardDesc: 'הכניסו URL כדי להתחיל ניתוח חדש מבוסס AI.',
       urlLabel: 'כתובת האתר',
       urlPlaceholder: 'https://example.com',
-      analyze: 'נתחי את האתר',
-      analyzing: 'סורקת...',
+      analyze: 'נתחו את האתר',
+      analyzing: 'סורק...',
       progress: 'התקדמות הסריקה',
-      whatTitle: 'מה תקבלי',
+      whatTitle: 'מה תקבלו',
       whatDesc: 'כל סריקה מייצרת תוכנית שיפור מעשית.',
       whatItems: [
         'ציון ביצועים וניתוח Core Web Vitals',
@@ -369,12 +369,12 @@ export const dictionary = {
 
     // Pricing
     pricing: {
-      title: 'שלמי רק על מה שאת משתמשת',
-      subtitle: 'קרדיטים לא פגים. כל סריקה עולה 100 קרדיטים. משתמשות חדשות מקבלות 150 קרדיטים חינם (= סריקה אחת חינם).',
+      title: 'שלמו רק על מה שאתם משתמשים',
+      subtitle: 'קרדיטים לא פגים. כל סריקה עולה 100 קרדיטים. משתמשים חדשים מקבלים 300 קרדיטים חינם (= 3 סריקות חינם).',
       popular: 'הכי כדאי',
       creditsLabel: 'קרדיטים',
       perScan: '100 קרדיטים לסריקה',
-      freeBonus: '150 קרדיטים חינם בהצטרפות — סריקה ראשונה בחינם!',
+      freeBonus: '300 קרדיטים חינם בהצטרפות — 3 סריקות ראשונות חינם!',
       packages: [
         {
           packageId: 'pack_200',
@@ -383,7 +383,7 @@ export const dictionary = {
           price: '₪10',
           priceNote: '5 אג׳ לקרדיט',
           scans: '2 סריקות',
-          cta: 'רכשי עכשיו',
+          cta: 'רכשו עכשיו',
           highlight: false,
         },
         {
@@ -393,7 +393,7 @@ export const dictionary = {
           price: '₪22',
           priceNote: '4.4 אג׳ לקרדיט',
           scans: '5 סריקות',
-          cta: 'רכשי עכשיו',
+          cta: 'רכשו עכשיו',
           highlight: true,
         },
         {
@@ -403,7 +403,7 @@ export const dictionary = {
           price: '₪45',
           priceNote: '3.75 אג׳ לקרדיט',
           scans: '12 סריקות',
-          cta: 'רכשי עכשיו',
+          cta: 'רכשו עכשיו',
           highlight: false,
         },
       ],
@@ -429,9 +429,9 @@ export const dictionary = {
       subtitle: 'צפי ונהלי את דוחות הסריקה שלך',
       recentReports: 'דוחות אחרונים',
       noReports: 'אין דוחות עדיין',
-      noReportsDesc: 'הריצי את הסריקה הראשונה שלך כדי ליצור דוח.',
-      startScan: 'התחילי סריקה',
-      selectReport: 'בחרי דוח מהרשימה לצפייה בפרטים',
+      noReportsDesc: 'הריצו את הסריקה הראשונה שלכם כדי ליצור דוח.',
+      startScan: 'התחילו סריקה',
+      selectReport: 'בחרו דוח מהרשימה לצפייה בפרטים',
       executiveSummary: 'סיכום מנהלים',
       noSummary: 'אין סיכום AI לסריקה זו.',
       scores: { overall: 'כולל', performance: 'ביצועים', accessibility: 'נגישות', seo: 'SEO', security: 'אבטחה' },
@@ -455,7 +455,7 @@ export const dictionary = {
       preferences: 'העדפות',
       preferencesDesc: 'התאמה אישית של החוויה שלך',
       language: 'שפה',
-      languageDesc: 'בחרי את השפה המועדפת עליך',
+      languageDesc: 'בחרו את השפה המועדפת עליכם',
       langHe: 'עברית',
       langEn: 'אנגלית',
       notifications: 'התראות',

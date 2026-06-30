@@ -6,11 +6,12 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, AlertTriangle, CheckCircle2, Info, Zap, Search, Eye, Shield,
   Loader2, ExternalLink, Smartphone, Lock, Code2, FileCode2, Link2, Printer,
-  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Share2, Check,
+  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Share2, Check, Bot, X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedLayout } from '@/components/layout/protected-layout';
 import { useLocale } from '@/contexts/locale';
+import { useAuth } from '@/contexts/auth';
 import { api, type Scan, type AnalyzerResult, type AnalyzerIssue, type CWVData } from '@/lib/api';
 
 // ── Analyzer metadata ────────────────────────────────────────────────────────
@@ -240,8 +241,7 @@ function IssueCard({ issue, isRtl }: { issue: AnalyzerIssue; isRtl: boolean }) {
                : <ChevronDown className="h-4 w-4 text-[#A1A1AA] shrink-0 mt-0.5" />}
       </button>
 
-      {open && (
-        <div className="px-4 pb-4 space-y-3 border-t border-white/10 pt-3">
+      <div className={`px-4 pb-4 space-y-3 border-t border-white/10 pt-3 issue-detail-body${open ? '' : ' issue-detail-body--closed'}`}>
           <p className="text-sm text-[#A1A1AA] leading-6">{issue.description}</p>
 
           <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 p-3">
@@ -294,7 +294,6 @@ function IssueCard({ issue, isRtl }: { issue: AnalyzerIssue; isRtl: boolean }) {
             </a>
           )}
         </div>
-      )}
     </div>
   );
 }
@@ -331,6 +330,7 @@ export default function ReportPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { locale } = useLocale();
+  const { refreshCredits } = useAuth();
   const isRtl = locale === 'he';
 
   const [scan, setScan] = useState<Scan | null>(null);
@@ -338,11 +338,18 @@ export default function ReportPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
   const [copied, setCopied] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportUserContext, setExportUserContext] = useState('');
+  const [exportLang, setExportLang] = useState<'he' | 'en'>('he');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState<'copy' | 'chatgpt' | 'claude' | null>(null);
+  const [exportCount, setExportCount] = useState<number | null>(null);
 
   useEffect(() => {
     api.scans.get(id)
       .then(async (s) => {
         setScan(s);
+        api.scans.getExportCount(s.id).then(({ count }) => setExportCount(count)).catch(() => {});
         // Load scan history to find the previous scan for comparison
         try {
           const history = await api.scans.listByProject(s.projectId);
@@ -362,6 +369,93 @@ export default function ReportPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  function buildExportPrompt(ctx: string, lang: 'he' | 'en'): string {
+    if (!scan) return '';
+    const raw: AnalyzerResult[] = (scan.rawResults as AnalyzerResult[] | null) ?? [];
+    const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    const he = lang === 'he';
+    const lines: string[] = [];
+
+    if (ctx.trim()) {
+      lines.push(he ? `מידע על האתר: ${ctx.trim()}` : `Website context: ${ctx.trim()}`);
+      lines.push('');
+    }
+    lines.push(he
+      ? `אתה מומחה לביצועי אתרים ו-SEO. סרקתי את האתר: ${scan.url}`
+      : `You are a web performance and SEO expert. I scanned the website: ${scan.url}`
+    );
+    lines.push(he
+      ? `ציון כולל: ${scan.overallScore ?? '?'}/100`
+      : `Overall score: ${scan.overallScore ?? '?'}/100`
+    );
+    lines.push('');
+    lines.push(he
+      ? `להלן כל הבעיות שנמצאו, מקובצות לפי קטגוריה. ספק תוכנית פעולה מתעדפת לתיקונן, החל מהקריטיות ביותר.`
+      : `Below are all the issues found, grouped by category. Please provide a prioritized action plan to fix them, starting with the most critical ones.`
+    );
+    lines.push('');
+
+    for (const result of raw) {
+      if (!result.issues.length) continue;
+      const meta = ANALYZER_META[result.analyzer];
+      const label = meta ? (he ? meta.labelHe : meta.label) : result.analyzer;
+      lines.push(`## ${label} — ${he ? 'ציון' : 'Score'}: ${result.score}/100`);
+      const sorted = [...result.issues].sort((a, b) =>
+        (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9)
+      );
+      for (const issue of sorted) {
+        const sev = he ? SEVERITY_LABEL_HE[issue.severity] : SEVERITY_LABEL_EN[issue.severity];
+        lines.push(`### [${sev}] ${issue.title}`);
+        if (issue.description)     lines.push(`${he ? 'תיאור' : 'Description'}: ${issue.description}`);
+        if (issue.whyItMatters)    lines.push(`${he ? 'למה זה חשוב' : 'Why it matters'}: ${issue.whyItMatters}`);
+        if (issue.recommendation)  lines.push(`${he ? 'כיצד לתקן' : 'How to fix'}: ${issue.recommendation}`);
+        if (issue.estimatedImpact) lines.push(`${he ? 'השפעה צפויה' : 'Expected impact'}: ${issue.estimatedImpact}`);
+        lines.push('');
+      }
+    }
+
+    if (scan.aiSummary) {
+      lines.push(`## ${he ? 'סיכום AI' : 'AI Summary'}`);
+      lines.push(scan.aiSummary);
+      lines.push('');
+    }
+
+    lines.push(he
+      ? `תעדוף את התיקונים לפי השפעה ומאמץ, והסבר כל תיקון בבהירות.`
+      : `Please prioritize fixes by impact and effort, and explain each fix clearly.`
+    );
+    return lines.join('\n');
+  }
+
+  async function handleExportAction(action: 'copy' | 'chatgpt' | 'claude') {
+    if (!scan) return;
+    setExportLoading(true);
+    try {
+      const { exportCount: newCount } = await api.scans.saveExport(scan.id, exportUserContext, exportLang);
+      const prompt = buildExportPrompt(exportUserContext, exportLang);
+      await navigator.clipboard.writeText(prompt);
+      await refreshCredits();
+      setExportCount(newCount);
+      setExportSuccess(action);
+
+      if (action === 'chatgpt') window.open('https://chatgpt.com/', '_blank');
+      if (action === 'claude')  window.open('https://claude.ai/new', '_blank');
+
+      setTimeout(() => {
+        setExportSuccess(null);
+        setExportLoading(false);
+        setShowExportModal(false);
+      }, 2000);
+    } catch (err) {
+      setExportLoading(false);
+      const msg = err instanceof Error ? err.message : '';
+      alert(isRtl
+        ? `לא ניתן לייצא: ${msg || 'שגיאה'}`
+        : `Export failed: ${msg || 'error'}`
+      );
+    }
   }
 
   if (isLoading) return (
@@ -402,15 +496,33 @@ export default function ReportPage() {
   return (
     <ProtectedLayout>
       <style>{`
+        .issue-detail-body--closed { display: none; }
+
         @media print {
           .no-print { display: none !important; }
           nav, header { display: none !important; }
           body { background: white !important; color: #111 !important; }
-          .rounded-2xl, .rounded-3xl { border: 1px solid #e5e7eb !important; }
+          .print-logo { display: flex !important; }
+          .issue-detail-body--closed { display: block !important; }
+          .rounded-2xl, .rounded-3xl { border: 1px solid #d1d5db !important; background: #f9fafb !important; }
+          p, span, h1, h2, h3, div { color: #111 !important; }
+          .text-\\[\\#A1A1AA\\], .text-\\[\\#64748B\\] { color: #555 !important; }
+          section, .rounded-2xl { page-break-inside: avoid; margin-bottom: 16px; }
+          pre { background: #f3f4f6 !important; border: 1px solid #d1d5db !important; color: #111 !important; }
+          a { color: #2563eb !important; }
         }
       `}</style>
 
       <main className="min-h-screen bg-transparent px-4 py-8 text-[#F9FAFB] sm:px-8" dir={isRtl ? 'rtl' : 'ltr'}>
+        {/* Print-only logo header */}
+        <div className="print-logo hidden items-center gap-3 mb-6 pb-4 border-b border-gray-300">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600">
+            <Zap className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-xl font-bold text-gray-900">Optimizio Performance</span>
+          <span className="ml-auto text-sm text-gray-500">{new Date(scan.createdAt).toLocaleDateString(isRtl ? 'he-IL' : 'en-US', { dateStyle: 'full' })}</span>
+        </div>
+
         <div className="mx-auto max-w-5xl space-y-6">
 
           {/* Topbar */}
@@ -430,6 +542,19 @@ export default function ReportPage() {
                 }`}>
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
                 {copied ? (isRtl ? 'הועתק!' : 'Copied!') : (isRtl ? 'שיתוף' : 'Share')}
+              </button>
+              <button
+                onClick={() => setShowExportModal(true)}
+                dir="ltr"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 py-2 text-xs font-medium text-violet-200 hover:bg-violet-500/25 hover:border-violet-500/60 transition-all">
+                <Bot className="h-3.5 w-3.5 shrink-0" />
+                {isRtl ? 'ייצוא לAI' : 'Export to AI'}
+                <span className="rounded-md bg-violet-400/25 border border-violet-400/40 px-1.5 py-0.5 text-[10px] font-bold text-violet-100 leading-none">
+                  200 ⚡
+                </span>
+                {exportCount !== null && exportCount > 0 && (
+                  <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-[#A1A1AA]">×{exportCount}</span>
+                )}
               </button>
               <button
                 onClick={() => window.print()}
@@ -461,12 +586,12 @@ export default function ReportPage() {
               {scoreCards.map(({ key, score, color }) => {
                 const meta = ANALYZER_META[key];
                 return (
-                  <div key={key} className="flex flex-col items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <a key={key} href={`#${key}`} className="flex flex-col items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-3 hover:bg-white/10 transition-colors cursor-pointer no-underline">
                     <ScoreRing score={score ?? 0} color={color} />
                     <p className="text-xs text-[#A1A1AA] text-center leading-tight">
                       {isRtl ? meta?.labelHe : meta?.label}
                     </p>
-                  </div>
+                  </a>
                 );
               })}
             </div>
@@ -608,7 +733,7 @@ export default function ReportPage() {
               : 'text-red-400';
 
             return (
-              <motion.section key={result.analyzer}
+              <motion.section id={result.analyzer} key={result.analyzer}
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                 className="rounded-2xl border border-white/10 bg-[#111827]/80 overflow-hidden">
 
@@ -712,6 +837,145 @@ export default function ReportPage() {
 
         </div>
       </main>
+
+      {/* ── Export to AI Modal ─────────────────────────────────────────────── */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir={isRtl ? 'rtl' : 'ltr'}>
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => !exportLoading && setShowExportModal(false)}
+          />
+          <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-2xl">
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-violet-400" />
+                <h2 className="font-semibold text-[#F9FAFB]">
+                  {isRtl ? 'ייצוא לAI' : 'Export to AI'}
+                </h2>
+              </div>
+              <button
+                onClick={() => !exportLoading && setShowExportModal(false)}
+                className="rounded-lg p-1.5 text-[#A1A1AA] hover:bg-white/10 hover:text-[#F9FAFB] transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Cost notice */}
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-300">
+              <Zap className="h-4 w-4 shrink-0" />
+              {isRtl
+                ? 'הפרומפט יועתק ללוח — הדביקו ב-ChatGPT או Claude. עלות: 200 קרדיטים'
+                : 'The prompt is copied to clipboard — paste it in ChatGPT or Claude. Cost: 200 credits'}
+            </div>
+
+            {/* Context textarea */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-[#F9FAFB] mb-2">
+                {isRtl ? 'ספרו על האתר שלכם (אופציונלי)' : 'Tell us about your website (optional)'}
+              </label>
+              <textarea
+                value={exportUserContext}
+                onChange={e => setExportUserContext(e.target.value)}
+                placeholder={isRtl
+                  ? 'לדוגמה: חנות אונליין למוצרי ספורט, קהל יעד 25-45, מתחרים עיקריים: X ו-Y...'
+                  : 'e.g. Online sports store, target audience 25–45, main competitors: X and Y...'
+                }
+                rows={3}
+                disabled={exportLoading}
+                className="w-full rounded-xl border border-white/10 bg-[#09090B] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-[#64748B] focus:border-violet-500 focus:outline-none resize-none disabled:opacity-50"
+              />
+            </div>
+
+            {/* Language toggle */}
+            <div className="mb-5">
+              <p className="text-sm font-medium text-[#F9FAFB] mb-2">
+                {isRtl ? 'שפת הפרומפט' : 'Prompt language'}
+              </p>
+              <div className="flex gap-2">
+                {(['he', 'en'] as const).map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setExportLang(l)}
+                    disabled={exportLoading}
+                    className={`flex-1 rounded-xl border py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                      exportLang === l
+                        ? 'border-violet-500/50 bg-violet-500/20 text-violet-300'
+                        : 'border-white/10 bg-white/5 text-[#A1A1AA] hover:bg-white/10'
+                    }`}
+                  >
+                    {l === 'he' ? 'עברית' : 'English'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleExportAction('copy')}
+                disabled={exportLoading}
+                className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
+                  exportSuccess === 'copy'
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                    : 'border-violet-500/30 bg-violet-500/15 text-violet-300 hover:bg-violet-500/25'
+                }`}
+              >
+                {exportLoading && !exportSuccess
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : exportSuccess === 'copy'
+                    ? <Check className="h-4 w-4" />
+                    : <Bot className="h-4 w-4" />
+                }
+                {exportSuccess === 'copy'
+                  ? (isRtl ? 'הועתק!' : 'Copied!')
+                  : (isRtl ? 'העתק פרומפט' : 'Copy Prompt')
+                }
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleExportAction('chatgpt')}
+                  disabled={exportLoading}
+                  className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
+                    exportSuccess === 'chatgpt'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                      : 'border-[#10A37F]/30 bg-[#10A37F]/10 text-[#10A37F] hover:bg-[#10A37F]/20'
+                  }`}
+                >
+                  {exportLoading && !exportSuccess
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : exportSuccess === 'chatgpt'
+                      ? <Check className="h-4 w-4" />
+                      : <ExternalLink className="h-4 w-4" />
+                  }
+                  ChatGPT
+                </button>
+                <button
+                  onClick={() => handleExportAction('claude')}
+                  disabled={exportLoading}
+                  className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
+                    exportSuccess === 'claude'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                      : 'border-[#D97706]/30 bg-[#D97706]/10 text-[#D97706] hover:bg-[#D97706]/20'
+                  }`}
+                >
+                  {exportLoading && !exportSuccess
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : exportSuccess === 'claude'
+                      ? <Check className="h-4 w-4" />
+                      : <ExternalLink className="h-4 w-4" />
+                  }
+                  Claude
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </ProtectedLayout>
   );
 }

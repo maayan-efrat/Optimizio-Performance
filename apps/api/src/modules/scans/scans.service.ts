@@ -143,4 +143,29 @@ export class ScansService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async saveExport(scanId: string, userId: string, userContext: string, lang: string): Promise<{ credits: number; exportId: string; exportCount: number }> {
+    const EXPORT_COST = 200;
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.credits < EXPORT_COST) {
+      throw new ForbiddenException(`אין מספיק קרדיטים. נדרשים ${EXPORT_COST}, יש ${user.credits}.`);
+    }
+
+    const [updated, record] = await Promise.all([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { credits: { decrement: EXPORT_COST } },
+      }),
+      (this.prisma as any).promptExport.create({
+        data: { scanId, userId, userContext: userContext ?? '', lang: lang ?? 'he' },
+      }),
+    ]);
+
+    const exportCount = await (this.prisma as any).promptExport.count({ where: { scanId } });
+    return { credits: updated.credits, exportId: record.id, exportCount };
+  }
+
+  async getExportCount(scanId: string): Promise<number> {
+    return (this.prisma as any).promptExport.count({ where: { scanId } });
+  }
 }

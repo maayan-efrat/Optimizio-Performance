@@ -100,4 +100,17 @@ export class PaymentsService {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     return { credits: user.credits, paymentsEnabled: this.paymentsEnabled };
   }
+
+  // ── Deduct credits for a feature action ───────────────────────────────────
+  async deductCredits(userId: string, amount: number): Promise<{ credits: number }> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.credits < amount) {
+      throw new ForbiddenException(`אין מספיק קרדיטים. נדרשים ${amount}, יש ${user.credits}.`);
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { credits: { decrement: amount } },
+    });
+    return { credits: updated.credits };
+  }
 }
