@@ -1,5 +1,8 @@
 import { BaseAnalyzer, AnalyzerResult, WebsiteData, AnalyzerIssue } from './base.analyzer';
 
+const PHONE_RE = /(\+972|05\d|0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}|\(\d{3}\)\s?\d{3}[-\s]\d{4}|\d{3}[-\s]\d{3}[-\s]\d{4})/;
+const ADDRESS_RE = /(\d{1,5}\s+\w[\w\s]{3,40}(?:street|st\.?|avenue|ave\.?|road|rd\.?|boulevard|blvd\.?|רחוב|שדרות|כביש))/i;
+
 export class SEOAnalyzer extends BaseAnalyzer {
   name = 'seo';
 
@@ -238,6 +241,20 @@ export class SEOAnalyzer extends BaseAnalyzer {
       });
     }
 
+    // ── PWA / manifest ────────────────────────────────────────────────────────
+    const hasManifest = /rel=["']manifest["']/i.test(html);
+    if (!hasManifest) {
+      issues.push({
+        title: 'No Web App Manifest (PWA)',
+        severity: 'low',
+        description: 'No <link rel="manifest"> found — site is not installable as a PWA.',
+        whyItMatters: 'Progressive Web Apps can be installed on phones, get push notifications, and work offline — improving engagement.',
+        recommendation: 'Add a manifest.json and link it in <head>: <link rel="manifest" href="/manifest.json">. Include name, icons, and start_url.',
+        estimatedImpact: '+2 points',
+        details: 'Google also uses manifest presence as a signal for mobile UX quality.',
+      });
+    }
+
     // ── Sitemap & robots.txt ──────────────────────────────────────────────────
     if (data.hasSitemap === false) {
       issues.push({
@@ -260,7 +277,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
       });
     }
 
-    // ── Word count / thin content ─────────────────────────────────────────────
+    // ── Word count / thin content / reading time ──────────────────────────────
     const textContent = html
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -268,6 +285,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
       .replace(/\s+/g, ' ')
       .trim();
     const wordCount = textContent.split(/\s+/).filter(w => w.length > 2).length;
+    const readingTimeMin = Math.ceil(wordCount / 200);
     if (wordCount < 200) {
       issues.push({
         title: `Thin content — only ${wordCount} words`,
@@ -277,6 +295,35 @@ export class SEOAnalyzer extends BaseAnalyzer {
         recommendation: 'Add at least 300-500 words of high-quality, relevant content.',
         estimatedImpact: '+5 points',
         details: `Detected ~${wordCount} words. Target: ≥ 300 words for informational pages.`,
+      });
+    }
+
+    // ── Contact info (local SEO) ──────────────────────────────────────────────
+    const hasPhone   = PHONE_RE.test(textContent);
+    const hasAddress = ADDRESS_RE.test(textContent);
+    const hasMapsEmbed = /maps\.google\.|google\.com\/maps|maps\.googleapis/i.test(html);
+    if (!hasPhone && !hasAddress && !hasMapsEmbed) {
+      issues.push({
+        title: 'No contact information detected',
+        severity: 'low',
+        description: 'No phone number, physical address, or Google Maps embed found.',
+        whyItMatters: 'For local businesses, contact details are critical for local SEO and building trust. Google uses them for Local Pack rankings.',
+        recommendation: 'Add your phone number, address, and an embedded Google Map to a Contact section. Also add LocalBusiness schema.',
+        estimatedImpact: '+3 points',
+        details: 'Local businesses without contact info rank lower in Google Maps / local search.',
+      });
+    }
+
+    // ── Social sharing buttons ────────────────────────────────────────────────
+    const hasSocialShare = /(?:sharer|share\?|addthis|sharethis|addtoany|facebook\.com\/sharer|twitter\.com\/intent|whatsapp:\/\/send|linkedin\.com\/shareArticle)/i.test(html);
+    if (!hasSocialShare) {
+      issues.push({
+        title: 'No social sharing buttons found',
+        severity: 'low',
+        description: 'No social sharing links or widgets detected on the page.',
+        whyItMatters: 'Social shares drive referral traffic and social signals that correlate with better rankings.',
+        recommendation: 'Add share buttons for Facebook, WhatsApp, LinkedIn and X/Twitter. Services like AddToAny make it easy.',
+        estimatedImpact: '+1 point',
       });
     }
 
@@ -309,6 +356,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
         titleLength: title.length,
         metaDescLength: metaDesc.length,
         wordCount,
+        readingTimeMin,
         h1Count: h1Tags.length,
         h1Text: h1Texts[0] || null,
         h2Count,
@@ -323,9 +371,12 @@ export class SEOAnalyzer extends BaseAnalyzer {
         hasTwitterCard: html.includes('twitter:card'),
         hasHreflang,
         hasFavicon,
+        hasManifest,
         hasSitemap: data.hasSitemap ?? null,
         hasRobotsTxt: data.hasRobotsTxt ?? null,
         robotsMeta: robotsMeta || 'index,follow',
+        hasContactInfo: hasPhone || hasAddress || hasMapsEmbed,
+        hasSocialShare,
       },
     };
   }

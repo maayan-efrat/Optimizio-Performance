@@ -20,7 +20,8 @@ export interface AnalyzerResult {
 
 export interface FetchedImage {
   src: string;
-  size?: number;   // bytes from Content-Length
+  size?: number;
+  httpStatus?: number;
   hasAlt: boolean;
   altText?: string;
   hasLazy: boolean;
@@ -38,6 +39,7 @@ export interface WebsiteData {
   htmlSizeBytes?: number;
   hasSitemap?: boolean;
   hasRobotsTxt?: boolean;
+  httpRedirectsToHttps?: boolean;
 }
 
 export abstract class BaseAnalyzer {

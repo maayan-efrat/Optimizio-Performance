@@ -1,5 +1,7 @@
 import { BaseAnalyzer, AnalyzerResult, WebsiteData, AnalyzerIssue } from './base.analyzer';
 
+const CDN_DOMAINS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'unpkg.com', 'cdn.skypack.dev', 'esm.sh'];
+
 export class SecurityAnalyzer extends BaseAnalyzer {
   name = 'security';
 
@@ -20,6 +22,19 @@ export class SecurityAnalyzer extends BaseAnalyzer {
         recommendation: "Install an SSL/TLS certificate (free via Let's Encrypt) and redirect HTTP → HTTPS permanently.",
         estimatedImpact: '+20 points',
         details: 'Google marks HTTP sites as "Not Secure" in Chrome since 2018.',
+      });
+    }
+
+    // ── HTTP → HTTPS redirect ─────────────────────────────────────────────────
+    if (data.url.startsWith('https://') && data.httpRedirectsToHttps === false) {
+      issues.push({
+        title: 'HTTP version does not redirect to HTTPS',
+        severity: 'high',
+        description: `Visiting http://${new URL(data.url).hostname} does not redirect to the HTTPS version.`,
+        whyItMatters: 'Users who type the URL without https:// land on an insecure HTTP version.',
+        recommendation: 'Add a 301 redirect from http:// to https:// at the server or CDN level.',
+        estimatedImpact: '+6 points',
+        details: 'HTTP → HTTPS redirect is expected for all HTTPS sites.',
       });
     }
 
@@ -80,6 +95,26 @@ export class SecurityAnalyzer extends BaseAnalyzer {
       });
     }
 
+    // ── Subresource Integrity (SRI) ───────────────────────────────────────────
+    const externalScriptTags = [...html.matchAll(/<script[^>]+src=["']([^"']+)["'][^>]*>/gi)];
+    const cdnScriptsWithoutSri = externalScriptTags.filter(m => {
+      const src = m[1];
+      const tag = m[0];
+      return CDN_DOMAINS.some(cdn => src.includes(cdn)) && !tag.includes('integrity=');
+    });
+    if (cdnScriptsWithoutSri.length > 0) {
+      issues.push({
+        title: `${cdnScriptsWithoutSri.length} CDN script(s) missing Subresource Integrity (SRI)`,
+        severity: 'medium',
+        description: `${cdnScriptsWithoutSri.length} external scripts from CDNs are loaded without integrity= attribute.`,
+        whyItMatters: 'If a CDN is compromised, attackers can inject malicious code into your site. SRI blocks tampered files.',
+        recommendation: 'Add integrity="sha384-..." and crossorigin="anonymous" to each CDN script. Use srihash.org to generate hashes.',
+        estimatedImpact: '+4 points',
+        affectedUrls: cdnScriptsWithoutSri.map(m => m[1]).slice(0, 10),
+        details: `CDN scripts without SRI: ${cdnScriptsWithoutSri.map(m => m[1].split('/').pop()).slice(0, 3).join(', ')}`,
+      });
+    }
+
     // ── X-Frame-Options ───────────────────────────────────────────────────────
     if (!h('x-frame-options') && !csp.includes('frame-ancestors')) {
       issues.push({
@@ -89,6 +124,21 @@ export class SecurityAnalyzer extends BaseAnalyzer {
         whyItMatters: 'Attackers can overlay transparent frames to trick users into clicking (clickjacking).',
         recommendation: 'Add: X-Frame-Options: SAMEORIGIN  (or set CSP frame-ancestors)',
         estimatedImpact: '+5 points',
+      });
+    }
+
+    // ── iframe sandbox ────────────────────────────────────────────────────────
+    const iframeTags = [...html.matchAll(/<iframe[^>]*>/gi)];
+    const unsandboxedIframes = iframeTags.filter(m => !m[0].includes('sandbox'));
+    if (unsandboxedIframes.length > 0) {
+      issues.push({
+        title: `${unsandboxedIframes.length} iframe(s) without sandbox attribute`,
+        severity: 'medium',
+        description: `${unsandboxedIframes.length} <iframe> elements lack the sandbox attribute.`,
+        whyItMatters: 'Unsandboxed iframes can run scripts, submit forms, and navigate the top-level window.',
+        recommendation: 'Add sandbox="allow-scripts allow-same-origin" (adjust permissions as needed) to all iframes.',
+        estimatedImpact: '+3 points',
+        details: `Found ${iframeTags.length} total iframes, ${unsandboxedIframes.length} unsandboxed.`,
       });
     }
 
@@ -126,6 +176,46 @@ export class SecurityAnalyzer extends BaseAnalyzer {
         recommendation: 'Add: Permissions-Policy: camera=(), microphone=(), geolocation=(self)',
         estimatedImpact: '+2 points',
       });
+    }
+
+    // ── Cookie security flags ─────────────────────────────────────────────────
+    const setCookieRaw = headers['set-cookie'] || '';
+    if (setCookieRaw) {
+      const cookieParts = setCookieRaw.split(',').map(s => s.trim());
+      const missingSecure   = cookieParts.filter(c => !/;\s*Secure/i.test(c));
+      const missingHttpOnly = cookieParts.filter(c => !/;\s*HttpOnly/i.test(c));
+      const missingSameSite = cookieParts.filter(c => !/;\s*SameSite/i.test(c));
+
+      if (missingSecure.length > 0 && data.url.startsWith('https://')) {
+        issues.push({
+          title: `${missingSecure.length} cookie(s) missing Secure flag`,
+          severity: 'medium',
+          description: 'One or more cookies are set without the Secure flag.',
+          whyItMatters: 'Cookies without Secure can be transmitted over HTTP, exposing session tokens.',
+          recommendation: 'Add the Secure attribute to all cookies: Set-Cookie: session=...; Secure; HttpOnly',
+          estimatedImpact: '+4 points',
+        });
+      }
+      if (missingHttpOnly.length > 0) {
+        issues.push({
+          title: `${missingHttpOnly.length} cookie(s) missing HttpOnly flag`,
+          severity: 'medium',
+          description: 'Cookies without HttpOnly are accessible via JavaScript — XSS can steal them.',
+          whyItMatters: 'HttpOnly cookies cannot be read by client-side scripts, making XSS-based session theft impossible.',
+          recommendation: 'Add HttpOnly to all session and authentication cookies.',
+          estimatedImpact: '+4 points',
+        });
+      }
+      if (missingSameSite.length > 0) {
+        issues.push({
+          title: `${missingSameSite.length} cookie(s) missing SameSite flag`,
+          severity: 'low',
+          description: 'Cookies without SameSite attribute may be sent in cross-site requests (CSRF risk).',
+          whyItMatters: 'SameSite=Lax or Strict prevents cookies from being sent in cross-site requests, blocking CSRF attacks.',
+          recommendation: 'Add SameSite=Lax to most cookies, SameSite=Strict for critical session cookies.',
+          estimatedImpact: '+2 points',
+        });
+      }
     }
 
     // ── Server header leak ────────────────────────────────────────────────────
@@ -199,6 +289,7 @@ export class SecurityAnalyzer extends BaseAnalyzer {
       recommendations: [],
       metadata: {
         isHttps: data.url.startsWith('https://'),
+        httpRedirectsToHttps: data.httpRedirectsToHttps ?? null,
         presentSecurityHeaders: presentHeaders,
         missingHeaderCount: 6 - presentHeaders.length,
         serverHeader: serverHeader || null,
@@ -206,6 +297,8 @@ export class SecurityAnalyzer extends BaseAnalyzer {
         inlineScripts,
         hasCsp: !!csp,
         cspHasUnsafeInline: csp.includes("'unsafe-inline'"),
+        cdnScriptsWithoutSri: cdnScriptsWithoutSri.length,
+        hasCookies: !!setCookieRaw,
       },
     };
   }

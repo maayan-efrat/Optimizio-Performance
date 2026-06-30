@@ -6,6 +6,7 @@ interface ResourceInfo {
   url: string;
   sizeBytes: number | null;
   name: string;
+  encoding: string | null;
 }
 
 const HEAVY_LIBS: { pattern: RegExp; name: string; alternative?: string; estimatedKb: number }[] = [
@@ -56,37 +57,84 @@ export class JavaScriptCSSAnalyzer extends BaseAnalyzer {
       });
     }
 
-    // — Large JS files
+    // — Large JS files + minification heuristic
     for (const r of jsResources) {
       if (r.sizeBytes && r.sizeBytes > 300_000) {
         const kb = Math.round(r.sizeBytes / 1024);
+        const isMinified = r.name.includes('.min.');
+        const hasCompression = r.encoding === 'gzip' || r.encoding === 'br';
         issues.push({
-          title: `Large JS file: ${r.name} (${kb} KB)`,
+          title: `Large JS file: ${r.name} (${kb} KB)${!isMinified ? ' — not minified' : ''}`,
           severity: kb > 600 ? 'high' : 'medium',
-          description: `${r.url} is ${kb} KB — well above the 300 KB recommended budget.`,
+          description: `${r.url} is ${kb} KB — above the 300 KB recommended budget.${!isMinified ? ' No minification detected.' : ''}`,
           whyItMatters: 'Large JavaScript files delay Time to Interactive and consume mobile data.',
-          recommendation: 'Enable code splitting, tree-shaking, and minification. Consider lazy-importing non-critical modules.',
+          recommendation: !isMinified
+            ? 'Minify this file (remove whitespace/comments), then enable code splitting and tree-shaking.'
+            : 'Enable code splitting, tree-shaking, and lazy-import non-critical modules.',
           estimatedImpact: '+5-12 points',
           resourceUrl: r.url,
-          details: `Size: ${kb} KB. Target: < 300 KB per script.`,
+          details: `${kb} KB. Minified: ${isMinified ? 'yes' : 'no'}. Compressed: ${hasCompression ? r.encoding : 'no'}. Target: < 300 KB.`,
+        });
+      } else if (r.sizeBytes && r.sizeBytes > 80_000 && !r.name.includes('.min.')) {
+        const kb = Math.round(r.sizeBytes / 1024);
+        issues.push({
+          title: `Unminified JS file: ${r.name} (${kb} KB)`,
+          severity: 'low',
+          description: `${r.name} appears to be unminified (no .min. in filename) and is ${kb} KB.`,
+          whyItMatters: 'Unminified files are 30-50% larger than their minified equivalents, increasing parse time.',
+          recommendation: `Run ${r.name} through a minifier (Terser, esbuild). The minified version should be ~${Math.round(kb * 0.6)}KB.`,
+          estimatedImpact: '+2-4 points',
+          resourceUrl: r.url,
+          details: `${kb} KB unminified → estimated ${Math.round(kb * 0.6)} KB minified (40% savings).`,
         });
       }
     }
 
-    // — Large CSS files
+    // — Large CSS files + minification heuristic
     for (const r of cssResources) {
       if (r.sizeBytes && r.sizeBytes > 100_000) {
         const kb = Math.round(r.sizeBytes / 1024);
+        const isMinified = r.name.includes('.min.');
         issues.push({
-          title: `Large CSS file: ${r.name} (${kb} KB)`,
+          title: `Large CSS file: ${r.name} (${kb} KB)${!isMinified ? ' — not minified' : ''}`,
           severity: 'medium',
-          description: `${r.url} is ${kb} KB — large stylesheet causing render-blocking delay.`,
+          description: `${r.url} is ${kb} KB — large stylesheet causing render-blocking delay.${!isMinified ? ' No minification detected.' : ''}`,
           whyItMatters: 'Render-blocking CSS prevents the browser from displaying content until the file loads.',
-          recommendation: 'Use PurgeCSS / Tailwind purge to remove unused styles. Extract and inline critical CSS.',
+          recommendation: !isMinified
+            ? 'Minify with cssnano or PostCSS, then use PurgeCSS to remove unused selectors.'
+            : 'Use PurgeCSS / Tailwind purge to remove unused styles. Extract and inline critical CSS.',
           estimatedImpact: '+3-8 points',
           resourceUrl: r.url,
+          details: `${kb} KB. Minified: ${isMinified ? 'yes' : 'no'}. Target: < 50 KB for critical CSS.`,
+        });
+      } else if (r.sizeBytes && r.sizeBytes > 30_000 && !r.name.includes('.min.')) {
+        const kb = Math.round(r.sizeBytes / 1024);
+        issues.push({
+          title: `Unminified CSS file: ${r.name} (${kb} KB)`,
+          severity: 'low',
+          description: `${r.name} appears to be unminified and is ${kb} KB.`,
+          whyItMatters: 'Unminified CSS slows rendering and wastes bandwidth on mobile.',
+          recommendation: `Minify ${r.name} with cssnano or cleancss. Expected saving: ~30%.`,
+          estimatedImpact: '+2 points',
+          resourceUrl: r.url,
+          details: `${kb} KB → estimated ${Math.round(kb * 0.7)} KB minified.`,
         });
       }
+    }
+
+    // — JS resources without compression
+    const uncompressedJs = jsResources.filter(r => r.sizeBytes && r.sizeBytes > 50_000 && !r.encoding);
+    if (uncompressedJs.length > 0) {
+      issues.push({
+        title: `${uncompressedJs.length} JS file(s) served without compression`,
+        severity: 'medium',
+        description: `${uncompressedJs.length} JavaScript files are served without Gzip or Brotli compression.`,
+        whyItMatters: 'Text-based assets like JS compress by 60-80%. Uncompressed files waste bandwidth.',
+        recommendation: 'Enable Gzip or Brotli on your web server for JS/CSS assets.',
+        estimatedImpact: '+3-6 points',
+        affectedUrls: uncompressedJs.map(r => r.url).slice(0, 8),
+        details: `${uncompressedJs.length} of ${jsResources.length} JS files lack Content-Encoding.`,
+      });
     }
 
     // — Heavy libraries
@@ -109,10 +157,15 @@ export class JavaScriptCSSAnalyzer extends BaseAnalyzer {
     }
 
     const totalJsKb = jsResources.reduce((s, r) => s + (r.sizeBytes ?? 0), 0) / 1024;
+    const unminifiedJs  = jsResources.filter(r => r.sizeBytes && r.sizeBytes > 30_000 && !r.name.includes('.min.')).length;
+    const unminifiedCss = cssResources.filter(r => r.sizeBytes && r.sizeBytes > 10_000 && !r.name.includes('.min.')).length;
+
     const metadata: Record<string, unknown> = {
       jsFileCount: jsUrls.length,
       cssFileCount: cssUrls.length,
       totalJsKb: Math.round(totalJsKb),
+      unminifiedJs,
+      unminifiedCss,
     };
 
     const score = this.calculateScore(issues);
@@ -137,6 +190,7 @@ export class JavaScriptCSSAnalyzer extends BaseAnalyzer {
   private async probeResources(urls: string[]): Promise<ResourceInfo[]> {
     return Promise.all(urls.map(async url => {
       let sizeBytes: number | null = null;
+      let encoding: string | null = null;
       try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 3_000);
@@ -144,8 +198,9 @@ export class JavaScriptCSSAnalyzer extends BaseAnalyzer {
         clearTimeout(timer);
         const cl = res.headers.get('content-length');
         if (cl) sizeBytes = parseInt(cl, 10);
+        encoding = res.headers.get('content-encoding');
       } catch {}
-      return { url, sizeBytes, name: url.split('/').pop()?.split('?')[0] ?? url };
+      return { url, sizeBytes, encoding, name: url.split('/').pop()?.split('?')[0] ?? url };
     }));
   }
 }

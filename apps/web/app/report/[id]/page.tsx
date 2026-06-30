@@ -93,39 +93,61 @@ function MetaBar({ analyzer, meta, isRtl }: { analyzer: string; meta: Record<str
   const pills: React.ReactNode[] = [];
 
   if (analyzer === 'seo') {
-    if (meta.wordCount != null)     pills.push(<StatPill key="wc"  label={isRtl ? 'מילים' : 'Words'}           value={meta.wordCount as number} ok={(meta.wordCount as number) >= 300} />);
-    if (meta.titleLength != null)   pills.push(<StatPill key="tl"  label={isRtl ? 'כותרת' : 'Title'}           value={`${meta.titleLength} ch`} ok={(meta.titleLength as number) >= 20 && (meta.titleLength as number) <= 65} />);
-    if (meta.metaDescLength != null) pills.push(<StatPill key="md" label={isRtl ? 'תיאור' : 'Description'}     value={`${meta.metaDescLength} ch`} ok={(meta.metaDescLength as number) >= 60 && (meta.metaDescLength as number) <= 165} />);
-    if (meta.h1Count != null)       pills.push(<StatPill key="h1"  label="H1"                                  value={meta.h1Count as number} ok={meta.h1Count === 1} />);
-    if (meta.h2Count != null)       pills.push(<StatPill key="h2"  label="H2"                                  value={meta.h2Count as number} ok={(meta.h2Count as number) > 0} />);
-    if (meta.internalLinks != null) pills.push(<StatPill key="il"  label={isRtl ? 'קישורים פנימיים' : 'Internal links'} value={meta.internalLinks as number} />);
-    if (meta.externalLinks != null) pills.push(<StatPill key="el"  label={isRtl ? 'קישורים חיצוניים' : 'External links'} value={meta.externalLinks as number} />);
-    if (meta.hasOgTags != null)     pills.push(<StatPill key="og"  label="Open Graph"                         value={meta.hasOgTags ? '✓' : '✗'} ok={meta.hasOgTags as boolean} />);
-    if (meta.hasCanonical != null)  pills.push(<StatPill key="cn"  label="Canonical"                          value={meta.hasCanonical ? '✓' : '✗'} ok={meta.hasCanonical as boolean} />);
-    if (meta.hasSitemap != null)    pills.push(<StatPill key="sm"  label="Sitemap"                            value={meta.hasSitemap ? '✓' : '✗'} ok={meta.hasSitemap as boolean} />);
-    if (meta.hasRobotsTxt != null)  pills.push(<StatPill key="rb"  label="Robots.txt"                         value={meta.hasRobotsTxt ? '✓' : '✗'} ok={meta.hasRobotsTxt as boolean} />);
+    if (meta.wordCount != null)       pills.push(<StatPill key="wc"  label={isRtl ? 'מילים' : 'Words'}             value={meta.wordCount as number} ok={(meta.wordCount as number) >= 300} />);
+    if (meta.readingTimeMin != null)  pills.push(<StatPill key="rt"  label={isRtl ? 'זמן קריאה' : 'Read time'}     value={`${meta.readingTimeMin} min`} />);
+    if (meta.titleLength != null)     pills.push(<StatPill key="tl"  label={isRtl ? 'כותרת' : 'Title'}             value={`${meta.titleLength} ch`} ok={(meta.titleLength as number) >= 20 && (meta.titleLength as number) <= 65} />);
+    if (meta.metaDescLength != null)  pills.push(<StatPill key="md"  label={isRtl ? 'תיאור' : 'Description'}       value={`${meta.metaDescLength} ch`} ok={(meta.metaDescLength as number) >= 60 && (meta.metaDescLength as number) <= 165} />);
+    if (meta.h1Count != null)         pills.push(<StatPill key="h1"  label="H1"                                    value={meta.h1Count as number} ok={meta.h1Count === 1} />);
+    if (meta.h2Count != null)         pills.push(<StatPill key="h2"  label="H2"                                    value={meta.h2Count as number} ok={(meta.h2Count as number) > 0} />);
+    if (meta.internalLinks != null)   pills.push(<StatPill key="il"  label={isRtl ? 'קישורים פנימיים' : 'Internal'} value={meta.internalLinks as number} />);
+    if (meta.externalLinks != null)   pills.push(<StatPill key="el"  label={isRtl ? 'חיצוניים' : 'External'}       value={meta.externalLinks as number} />);
+    if (meta.hasOgTags != null)       pills.push(<StatPill key="og"  label="OG"                                    value={meta.hasOgTags ? '✓' : '✗'} ok={meta.hasOgTags as boolean} />);
+    if (meta.hasCanonical != null)    pills.push(<StatPill key="cn"  label="Canonical"                             value={meta.hasCanonical ? '✓' : '✗'} ok={meta.hasCanonical as boolean} />);
+    if (meta.hasSitemap != null)      pills.push(<StatPill key="sm"  label="Sitemap"                               value={meta.hasSitemap ? '✓' : '✗'} ok={meta.hasSitemap as boolean} />);
+    if (meta.hasRobotsTxt != null)    pills.push(<StatPill key="rb"  label="Robots.txt"                            value={meta.hasRobotsTxt ? '✓' : '✗'} ok={meta.hasRobotsTxt as boolean} />);
+    if (meta.hasManifest != null)     pills.push(<StatPill key="mf"  label="PWA"                                   value={meta.hasManifest ? '✓' : '✗'} ok={meta.hasManifest as boolean} />);
+    if (meta.hasContactInfo != null)  pills.push(<StatPill key="ci"  label={isRtl ? 'פרטי קשר' : 'Contact'}        value={meta.hasContactInfo ? '✓' : '✗'} ok={meta.hasContactInfo as boolean} />);
+    if (meta.hasSocialShare != null)  pills.push(<StatPill key="ss"  label={isRtl ? 'שיתוף' : 'Social share'}      value={meta.hasSocialShare ? '✓' : '✗'} ok={meta.hasSocialShare as boolean} />);
   }
 
   if (analyzer === 'performance') {
-    if (meta.fetchDurationMs != null) pills.push(<StatPill key="dt" label={isRtl ? 'זמן תגובה' : 'TTFB'} value={`${meta.fetchDurationMs}ms`} ok={(meta.fetchDurationMs as number) < 800} />);
-    if (meta.htmlSizeKb != null)     pills.push(<StatPill key="hs" label={isRtl ? 'גודל HTML' : 'HTML size'} value={`${meta.htmlSizeKb}KB`} ok={(meta.htmlSizeKb as number) < 200} />);
-    if (meta.imageCount != null)     pills.push(<StatPill key="ic" label={isRtl ? 'תמונות' : 'Images'}    value={`${meta.largeImageCount ?? 0}/${meta.imageCount} large`} ok={(meta.largeImageCount as number) === 0} />);
-    if (meta.externalScripts != null) pills.push(<StatPill key="sc" label={isRtl ? 'סקריפטים' : 'Scripts'} value={meta.externalScripts as number} ok={(meta.externalScripts as number) <= 10} />);
-    if (meta.renderBlockingScripts != null) pills.push(<StatPill key="rb" label={isRtl ? 'חוסמים' : 'Blocking'} value={meta.renderBlockingScripts as number} ok={(meta.renderBlockingScripts as number) === 0} />);
-    if (meta.externalFonts != null)  pills.push(<StatPill key="fn" label={isRtl ? 'גופנים' : 'Fonts'}    value={meta.externalFonts as number} ok={(meta.externalFonts as number) <= 1} />);
-    if (meta.hasPreconnect != null)  pills.push(<StatPill key="pc" label="Preconnect"                    value={meta.hasPreconnect ? '✓' : '✗'} ok={meta.hasPreconnect as boolean} />);
-    if (meta.hasPreload != null)     pills.push(<StatPill key="pl" label="Preload"                       value={meta.hasPreload ? '✓' : '✗'} ok={meta.hasPreload as boolean} />);
+    if (meta.fetchDurationMs != null)      pills.push(<StatPill key="dt"  label={isRtl ? 'זמן תגובה' : 'TTFB'}        value={`${meta.fetchDurationMs}ms`} ok={(meta.fetchDurationMs as number) < 800} />);
+    if (meta.compression != null)          pills.push(<StatPill key="gz"  label={isRtl ? 'דחיסה' : 'Compression'}     value={String(meta.compression)} ok={meta.compression !== 'none'} />);
+    if (meta.hasCacheControl != null)      pills.push(<StatPill key="cc"  label="Cache"                               value={meta.hasCacheControl ? '✓' : '✗'} ok={meta.hasCacheControl as boolean} />);
+    if (meta.htmlSizeKb != null)           pills.push(<StatPill key="hs"  label={isRtl ? 'גודל HTML' : 'HTML'}         value={`${meta.htmlSizeKb}KB`} ok={(meta.htmlSizeKb as number) < 200} />);
+    if (meta.imageCount != null)           pills.push(<StatPill key="ic"  label={isRtl ? 'תמונות' : 'Images'}          value={`${meta.largeImageCount ?? 0}/${meta.imageCount} large`} ok={(meta.largeImageCount as number) === 0} />);
+    if (meta.brokenImageCount != null && (meta.brokenImageCount as number) > 0)
+                                           pills.push(<StatPill key="bi"  label={isRtl ? 'שבורות' : 'Broken imgs'}     value={meta.brokenImageCount as number} ok={false} />);
+    if (meta.externalScripts != null)      pills.push(<StatPill key="sc"  label={isRtl ? 'סקריפטים' : 'Scripts'}       value={meta.externalScripts as number} ok={(meta.externalScripts as number) <= 10} />);
+    if (meta.renderBlockingScripts != null) pills.push(<StatPill key="rbs" label={isRtl ? 'JS חוסם' : 'Blocking JS'}  value={meta.renderBlockingScripts as number} ok={(meta.renderBlockingScripts as number) === 0} />);
+    if (meta.renderBlockingCss != null && (meta.renderBlockingCss as number) > 3)
+                                           pills.push(<StatPill key="rbc" label={isRtl ? 'CSS חוסם' : 'Blocking CSS'}  value={meta.renderBlockingCss as number} ok={false} />);
+    if (meta.externalFonts != null)        pills.push(<StatPill key="fn"  label={isRtl ? 'גופנים' : 'Fonts'}           value={meta.externalFonts as number} ok={(meta.externalFonts as number) <= 1} />);
+    if (meta.hasPreconnect != null)        pills.push(<StatPill key="pc"  label="Preconnect"                           value={meta.hasPreconnect ? '✓' : '✗'} ok={meta.hasPreconnect as boolean} />);
+    if (meta.hasPreload != null)           pills.push(<StatPill key="pl"  label="Preload"                              value={meta.hasPreload ? '✓' : '✗'} ok={meta.hasPreload as boolean} />);
   }
 
   if (analyzer === 'security') {
-    if (meta.isHttps != null)        pills.push(<StatPill key="ht" label="HTTPS"                             value={meta.isHttps ? '✓' : '✗'} ok={meta.isHttps as boolean} />);
-    if (meta.hasCsp != null)         pills.push(<StatPill key="cs" label="CSP"                               value={meta.hasCsp ? '✓' : '✗'} ok={meta.hasCsp as boolean} />);
+    if (meta.isHttps != null)              pills.push(<StatPill key="ht"  label="HTTPS"                            value={meta.isHttps ? '✓' : '✗'} ok={meta.isHttps as boolean} />);
+    if (meta.httpRedirectsToHttps != null) pills.push(<StatPill key="hrd" label={isRtl ? 'ריידרקט HTTP' : 'HTTP→HTTPS'} value={meta.httpRedirectsToHttps ? '✓' : '✗'} ok={meta.httpRedirectsToHttps as boolean} />);
+    if (meta.hasCsp != null)               pills.push(<StatPill key="cs"  label="CSP"                             value={meta.hasCsp ? '✓' : '✗'} ok={meta.hasCsp as boolean} />);
     if (meta.presentSecurityHeaders) {
       const present = meta.presentSecurityHeaders as string[];
-      pills.push(<StatPill key="sh" label={isRtl ? 'כותרות אבטחה' : 'Security headers'} value={`${present.length}/6`} ok={present.length >= 4} />);
+      pills.push(<StatPill key="sh" label={isRtl ? 'כותרות אבטחה' : 'Sec headers'} value={`${present.length}/6`} ok={present.length >= 4} />);
     }
-    if (meta.serverHeader)           pills.push(<StatPill key="sv" label="Server" value={String(meta.serverHeader).slice(0, 20)} ok={false} />);
-    if (meta.xPoweredBy)             pills.push(<StatPill key="xp" label="X-Powered-By" value={String(meta.xPoweredBy).slice(0, 20)} ok={false} />);
+    if ((meta.cdnScriptsWithoutSri as number) > 0) pills.push(<StatPill key="sri" label="SRI" value={`${meta.cdnScriptsWithoutSri} missing`} ok={false} />);
+    if (meta.serverHeader)                 pills.push(<StatPill key="sv"  label="Server"                          value={String(meta.serverHeader).slice(0, 20)} ok={false} />);
+    if (meta.xPoweredBy)                   pills.push(<StatPill key="xp"  label="X-Powered-By"                    value={String(meta.xPoweredBy).slice(0, 20)} ok={false} />);
+  }
+
+  if (analyzer === 'javascript-css') {
+    if (meta.jsFileCount != null)   pills.push(<StatPill key="jc"  label={isRtl ? 'קבצי JS' : 'JS files'}      value={meta.jsFileCount as number} ok={(meta.jsFileCount as number) <= 12} />);
+    if (meta.cssFileCount != null)  pills.push(<StatPill key="cc"  label={isRtl ? 'קבצי CSS' : 'CSS files'}    value={meta.cssFileCount as number} ok={(meta.cssFileCount as number) <= 5} />);
+    if (meta.totalJsKb != null)     pills.push(<StatPill key="jk"  label={isRtl ? 'סך JS' : 'Total JS'}        value={`${meta.totalJsKb}KB`} ok={(meta.totalJsKb as number) < 600} />);
+    if (meta.unminifiedJs != null && (meta.unminifiedJs as number) > 0)
+                                    pills.push(<StatPill key="umj" label={isRtl ? 'JS לא מוקטן' : 'Unminified JS'} value={meta.unminifiedJs as number} ok={false} />);
+    if (meta.unminifiedCss != null && (meta.unminifiedCss as number) > 0)
+                                    pills.push(<StatPill key="umc" label={isRtl ? 'CSS לא מוקטן' : 'Unminified CSS'} value={meta.unminifiedCss as number} ok={false} />);
   }
 
   if (analyzer === 'accessibility') {

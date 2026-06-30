@@ -83,17 +83,18 @@ export class ScanEngineService {
     const fetchedImages = await this.probeImages(url, html);
     console.log(`[ScanEngine] Probed ${fetchedImages.length} images`);
 
-    // Probe robots.txt and sitemap.xml in parallel (best-effort)
+    // Probe robots.txt, sitemap.xml, and HTTPS redirect in parallel
     const origin = new URL(url).origin;
-    const [hasSitemap, hasRobotsTxt] = await Promise.all([
+    const [hasSitemap, hasRobotsTxt, httpRedirectsToHttps] = await Promise.all([
       this.probeExists(`${origin}/sitemap.xml`),
       this.probeExists(`${origin}/robots.txt`),
+      this.checkHttpsRedirect(url),
     ]);
 
     const websiteData: WebsiteData = {
       url, html, responseHeaders: headers, fetchedImages,
       fetchDurationMs: durationMs, htmlSizeBytes: sizeBytes,
-      hasSitemap, hasRobotsTxt,
+      hasSitemap, hasRobotsTxt, httpRedirectsToHttps,
     };
 
     const results = await Promise.all(
@@ -148,6 +149,24 @@ export class ScanEngineService {
     }
   }
 
+  private async checkHttpsRedirect(url: string): Promise<boolean> {
+    if (!url.startsWith('https://')) return false; // already HTTP, not relevant
+    try {
+      const httpUrl = url.replace(/^https:\/\//, 'http://');
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 6_000);
+      const res = await fetch(httpUrl, {
+        headers: { 'User-Agent': UA },
+        signal: ctrl.signal,
+        redirect: 'follow',
+      });
+      clearTimeout(t);
+      return res.url.startsWith('https://');
+    } catch {
+      return false;
+    }
+  }
+
   private async probeExists(url: string): Promise<boolean> {
     try {
       const ctrl = new AbortController();
@@ -179,6 +198,7 @@ export class ScanEngineService {
       try { fullSrc = new URL(src, baseUrl).href; } catch {}
 
       let size: number | undefined;
+      let httpStatus: number | undefined;
       try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 4_000);
@@ -188,11 +208,12 @@ export class ScanEngineService {
           signal: ctrl.signal,
         });
         clearTimeout(t);
+        httpStatus = headRes.status;
         const cl = headRes.headers.get('content-length');
         if (cl) size = parseInt(cl, 10);
       } catch {}
 
-      images.push({ src: fullSrc, size, hasAlt, altText, hasLazy, hasExplicitDimensions });
+      images.push({ src: fullSrc, size, httpStatus, hasAlt, altText, hasLazy, hasExplicitDimensions });
     }
 
     return images;
