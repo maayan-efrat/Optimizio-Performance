@@ -157,7 +157,7 @@ export const api = {
   },
   admin: {
     getStats: () =>
-      request<{ totalUsers: number; totalScans: number; totalProjects: number; scansToday: number }>('/admin/stats'),
+      request<{ totalUsers: number; totalScans: number; totalProjects: number; scansToday: number; paymentsEnabled: boolean }>('/admin/stats'),
     getUsers: () =>
       request<Array<{ id: string; email: string; name: string; role: string; credits: number; emailVerified: boolean; createdAt: string; _count: { projects: number } }>>('/admin/users'),
     updateCredits: (userId: string, credits: number) =>
@@ -169,7 +169,7 @@ export const api = {
     createCheckout: (packageId: string) =>
       request<{ url: string }>('/payments/checkout', { method: 'POST', body: JSON.stringify({ packageId }) }),
     getCredits: () =>
-      request<{ credits: number }>('/payments/credits'),
+      request<{ credits: number; paymentsEnabled: boolean }>('/payments/credits'),
   },
   scans: {
     create: (body: { projectId: string; url: string; locale?: string }) =>

@@ -1,11 +1,15 @@
 import { Body, Controller, Get, Param, Patch, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt.guard';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PaymentsService } from '../payments/payments.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly payments: PaymentsService,
+  ) {}
 
   private assertAdmin(role: string) {
     if (role !== 'admin') throw new ForbiddenException('Admin only');
@@ -66,6 +70,6 @@ export class AdminController {
     const scansToday = await this.prisma.scan.count({
       where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
     });
-    return { totalUsers, totalScans, totalProjects, scansToday };
+    return { totalUsers, totalScans, totalProjects, scansToday, paymentsEnabled: this.payments.paymentsEnabled };
   }
 }

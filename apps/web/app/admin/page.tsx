@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Zap, BarChart2, Shield, Loader2, CheckCircle2, XCircle, Crown } from 'lucide-react';
+import { Users, Zap, BarChart2, Shield, Loader2, CheckCircle2, XCircle, Crown, Lock, Unlock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ProtectedLayout } from '@/components/layout/protected-layout';
 import { useAuth } from '@/contexts/auth';
@@ -14,7 +14,7 @@ type AdminUser = {
   _count: { projects: number };
 };
 
-type Stats = { totalUsers: number; totalScans: number; totalProjects: number; scansToday: number };
+type Stats = { totalUsers: number; totalScans: number; totalProjects: number; scansToday: number; paymentsEnabled: boolean };
 
 export default function AdminPage() {
   const router = useRouter();
@@ -110,6 +110,36 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
+
+              {/* Payments status card — spans full width on mobile */}
+              <div className={`col-span-2 md:col-span-4 rounded-2xl border p-5 flex items-center justify-between gap-4 ${
+                stats.paymentsEnabled
+                  ? 'border-emerald-500/30 bg-emerald-500/10'
+                  : 'border-amber-500/30 bg-amber-500/10'
+              }`}>
+                <div className="flex items-center gap-3">
+                  {stats.paymentsEnabled
+                    ? <Unlock className="h-6 w-6 text-emerald-400 shrink-0" />
+                    : <Lock className="h-6 w-6 text-amber-400 shrink-0" />
+                  }
+                  <div>
+                    <div className={`font-semibold ${stats.paymentsEnabled ? 'text-emerald-300' : 'text-amber-300'}`}>
+                      {stats.paymentsEnabled ? '✅ מערכת תשלומים — פעילה' : '🔒 מערכת תשלומים — כבויה'}
+                    </div>
+                    <div className="text-xs text-[#A1A1AA] mt-0.5">
+                      {stats.paymentsEnabled
+                        ? 'משתמשים יכולים לרכוש קרדיטים דרך Cardcom'
+                        : <>כדי להפעיל: שני <code className="bg-white/10 px-1 py-0.5 rounded text-amber-200">PAYMENTS_ENABLED=true</code> ב-<code className="bg-white/10 px-1 py-0.5 rounded text-amber-200">apps/api/.env</code> והפעלי מחדש את השרת</>
+                      }
+                    </div>
+                  </div>
+                </div>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+                  stats.paymentsEnabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                }`}>
+                  {stats.paymentsEnabled ? 'ON' : 'OFF'}
+                </span>
+              </div>
             </motion.div>
           )}
 

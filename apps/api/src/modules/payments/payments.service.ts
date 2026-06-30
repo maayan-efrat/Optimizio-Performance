@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 // Credit packages: priceId → { credits, amountIls, productName }
@@ -16,8 +16,16 @@ export class PaymentsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  get paymentsEnabled(): boolean {
+    return process.env.PAYMENTS_ENABLED === 'true';
+  }
+
   // ── Create Cardcom Low-Profile payment URL ────────────────────────────────
   async createCheckoutSession(userId: string, packageId: string): Promise<{ url: string }> {
+    if (!this.paymentsEnabled) {
+      throw new ServiceUnavailableException('התשלומים אינם זמינים כרגע. נסי שוב מאוחר יותר.');
+    }
+
     const pkg = CREDIT_PACKAGES[packageId];
     if (!pkg) throw new BadRequestException('Invalid package');
 
@@ -88,8 +96,8 @@ export class PaymentsService {
   }
 
   // ── Get user credits ──────────────────────────────────────────────────────
-  async getCredits(userId: string): Promise<{ credits: number }> {
+  async getCredits(userId: string): Promise<{ credits: number; paymentsEnabled: boolean }> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    return { credits: user.credits };
+    return { credits: user.credits, paymentsEnabled: this.paymentsEnabled };
   }
 }

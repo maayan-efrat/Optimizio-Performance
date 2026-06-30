@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Sparkles, Star, Gift, Loader2 } from 'lucide-react';
+import { Zap, Sparkles, Star, Gift, Loader2, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/contexts/locale';
 import { getDictionary } from '@/lib/i18n';
@@ -17,13 +17,21 @@ export default function PricingPage() {
   const router = useRouter();
   const [loadingPkg, setLoadingPkg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentsEnabled, setPaymentsEnabled] = useState<boolean | null>(null);
+
+  // Check if payments are enabled (only if user is logged in)
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    if (!token) { setPaymentsEnabled(false); return; }
+    api.payments.getCredits()
+      .then(({ paymentsEnabled }) => setPaymentsEnabled(paymentsEnabled))
+      .catch(() => setPaymentsEnabled(false));
+  }, []);
 
   async function handleBuy(packageId: string) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    if (!token) {
-      router.push('/register');
-      return;
-    }
+    if (!token) { router.push('/register'); return; }
+    if (!paymentsEnabled) return;
     setLoadingPkg(packageId);
     setError(null);
     try {
@@ -34,6 +42,8 @@ export default function PricingPage() {
       setLoadingPkg(null);
     }
   }
+
+  const disabled = !paymentsEnabled;
 
   return (
     <main className="min-h-screen bg-transparent text-[#F9FAFB]" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -47,12 +57,27 @@ export default function PricingPage() {
 
         {/* Free bonus banner */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="mx-auto max-w-xl mb-12">
+          className="mx-auto max-w-xl mb-8">
           <div className="flex items-center justify-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-4">
             <Gift className="h-6 w-6 text-emerald-400 shrink-0" />
             <p className="text-sm font-medium text-emerald-300">{t.freeBonus}</p>
           </div>
         </motion.div>
+
+        {/* Payments disabled banner */}
+        {paymentsEnabled === false && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="mx-auto max-w-xl mb-10">
+            <div className="flex items-center justify-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-4">
+              <Lock className="h-5 w-5 text-amber-400 shrink-0" />
+              <p className="text-sm font-medium text-amber-300">
+                {isRtl
+                  ? 'מערכת התשלומים אינה זמינה כרגע. קרדיטים יינתנו בקרוב!'
+                  : 'Payments are temporarily unavailable. Credits coming soon!'}
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Error banner */}
         {error && (
@@ -72,7 +97,7 @@ export default function PricingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + i * 0.1 }}
-                className="relative"
+                className={`relative ${disabled ? 'opacity-70' : ''}`}
               >
                 {pkg.highlight && (
                   <div className="absolute -top-4 inset-x-0 flex justify-center">
@@ -120,16 +145,20 @@ export default function PricingPage() {
 
                     <button
                       onClick={() => handleBuy(pkg.packageId)}
-                      disabled={loadingPkg !== null}
-                      className={`block w-full text-center rounded-xl py-3 font-semibold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                        pkg.highlight
-                          ? 'bg-gradient-to-r from-violet-500 to-blue-500 text-white hover:from-violet-600 hover:to-blue-600 shadow-lg'
-                          : 'border border-white/15 bg-white/5 text-[#F9FAFB] hover:bg-white/10'
+                      disabled={disabled || loadingPkg !== null}
+                      className={`block w-full text-center rounded-xl py-3 font-semibold text-sm transition-all disabled:cursor-not-allowed ${
+                        disabled
+                          ? 'border border-white/10 bg-white/5 text-[#64748B]'
+                          : pkg.highlight
+                            ? 'bg-gradient-to-r from-violet-500 to-blue-500 text-white hover:from-violet-600 hover:to-blue-600 shadow-lg'
+                            : 'border border-white/15 bg-white/5 text-[#F9FAFB] hover:bg-white/10'
                       }`}
                     >
                       {isLoading
                         ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {isRtl ? 'מעבירה לתשלום...' : 'Redirecting...'}</span>
-                        : pkg.cta
+                        : disabled
+                          ? <span className="flex items-center justify-center gap-2"><Lock className="h-4 w-4" /> {isRtl ? 'בקרוב' : 'Coming soon'}</span>
+                          : pkg.cta
                       }
                     </button>
                   </div>
