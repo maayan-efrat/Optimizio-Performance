@@ -21,4 +21,12 @@ export class ProjectsService {
   get(id: string, userId: string) {
     return this.prisma.project.findFirst({ where: { id, userId } });
   }
+
+  async delete(id: string, userId: string) {
+    const project = await this.prisma.project.findFirst({ where: { id, userId } });
+    if (!project) return { deleted: false };
+    await this.prisma.scan.deleteMany({ where: { projectId: id } });
+    await this.prisma.project.delete({ where: { id } });
+    return { deleted: true };
+  }
 }

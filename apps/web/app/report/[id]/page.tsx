@@ -73,6 +73,79 @@ function psiScoreColor(score: number | null) {
   return 'text-red-400';
 }
 
+// ── Metadata stats bar ────────────────────────────────────────────────────────
+
+type MetaValue = string | number | boolean | null | string[];
+
+function StatPill({ label, value, ok }: { label: string; value: string | number; ok?: boolean }) {
+  return (
+    <div className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 ${
+      ok === undefined ? 'border-white/10 bg-white/5' :
+      ok ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-red-500/20 bg-red-500/10'
+    }`}>
+      <span className="text-xs text-[#A1A1AA]">{label}</span>
+      <span className={`text-xs font-semibold ${ok === undefined ? 'text-[#F9FAFB]' : ok ? 'text-emerald-400' : 'text-red-400'}`}>{value}</span>
+    </div>
+  );
+}
+
+function MetaBar({ analyzer, meta, isRtl }: { analyzer: string; meta: Record<string, unknown>; isRtl: boolean }) {
+  const pills: React.ReactNode[] = [];
+
+  if (analyzer === 'seo') {
+    if (meta.wordCount != null)     pills.push(<StatPill key="wc"  label={isRtl ? 'מילים' : 'Words'}           value={meta.wordCount as number} ok={(meta.wordCount as number) >= 300} />);
+    if (meta.titleLength != null)   pills.push(<StatPill key="tl"  label={isRtl ? 'כותרת' : 'Title'}           value={`${meta.titleLength} ch`} ok={(meta.titleLength as number) >= 20 && (meta.titleLength as number) <= 65} />);
+    if (meta.metaDescLength != null) pills.push(<StatPill key="md" label={isRtl ? 'תיאור' : 'Description'}     value={`${meta.metaDescLength} ch`} ok={(meta.metaDescLength as number) >= 60 && (meta.metaDescLength as number) <= 165} />);
+    if (meta.h1Count != null)       pills.push(<StatPill key="h1"  label="H1"                                  value={meta.h1Count as number} ok={meta.h1Count === 1} />);
+    if (meta.h2Count != null)       pills.push(<StatPill key="h2"  label="H2"                                  value={meta.h2Count as number} ok={(meta.h2Count as number) > 0} />);
+    if (meta.internalLinks != null) pills.push(<StatPill key="il"  label={isRtl ? 'קישורים פנימיים' : 'Internal links'} value={meta.internalLinks as number} />);
+    if (meta.externalLinks != null) pills.push(<StatPill key="el"  label={isRtl ? 'קישורים חיצוניים' : 'External links'} value={meta.externalLinks as number} />);
+    if (meta.hasOgTags != null)     pills.push(<StatPill key="og"  label="Open Graph"                         value={meta.hasOgTags ? '✓' : '✗'} ok={meta.hasOgTags as boolean} />);
+    if (meta.hasCanonical != null)  pills.push(<StatPill key="cn"  label="Canonical"                          value={meta.hasCanonical ? '✓' : '✗'} ok={meta.hasCanonical as boolean} />);
+    if (meta.hasSitemap != null)    pills.push(<StatPill key="sm"  label="Sitemap"                            value={meta.hasSitemap ? '✓' : '✗'} ok={meta.hasSitemap as boolean} />);
+    if (meta.hasRobotsTxt != null)  pills.push(<StatPill key="rb"  label="Robots.txt"                         value={meta.hasRobotsTxt ? '✓' : '✗'} ok={meta.hasRobotsTxt as boolean} />);
+  }
+
+  if (analyzer === 'performance') {
+    if (meta.fetchDurationMs != null) pills.push(<StatPill key="dt" label={isRtl ? 'זמן תגובה' : 'TTFB'} value={`${meta.fetchDurationMs}ms`} ok={(meta.fetchDurationMs as number) < 800} />);
+    if (meta.htmlSizeKb != null)     pills.push(<StatPill key="hs" label={isRtl ? 'גודל HTML' : 'HTML size'} value={`${meta.htmlSizeKb}KB`} ok={(meta.htmlSizeKb as number) < 200} />);
+    if (meta.imageCount != null)     pills.push(<StatPill key="ic" label={isRtl ? 'תמונות' : 'Images'}    value={`${meta.largeImageCount ?? 0}/${meta.imageCount} large`} ok={(meta.largeImageCount as number) === 0} />);
+    if (meta.externalScripts != null) pills.push(<StatPill key="sc" label={isRtl ? 'סקריפטים' : 'Scripts'} value={meta.externalScripts as number} ok={(meta.externalScripts as number) <= 10} />);
+    if (meta.renderBlockingScripts != null) pills.push(<StatPill key="rb" label={isRtl ? 'חוסמים' : 'Blocking'} value={meta.renderBlockingScripts as number} ok={(meta.renderBlockingScripts as number) === 0} />);
+    if (meta.externalFonts != null)  pills.push(<StatPill key="fn" label={isRtl ? 'גופנים' : 'Fonts'}    value={meta.externalFonts as number} ok={(meta.externalFonts as number) <= 1} />);
+    if (meta.hasPreconnect != null)  pills.push(<StatPill key="pc" label="Preconnect"                    value={meta.hasPreconnect ? '✓' : '✗'} ok={meta.hasPreconnect as boolean} />);
+    if (meta.hasPreload != null)     pills.push(<StatPill key="pl" label="Preload"                       value={meta.hasPreload ? '✓' : '✗'} ok={meta.hasPreload as boolean} />);
+  }
+
+  if (analyzer === 'security') {
+    if (meta.isHttps != null)        pills.push(<StatPill key="ht" label="HTTPS"                             value={meta.isHttps ? '✓' : '✗'} ok={meta.isHttps as boolean} />);
+    if (meta.hasCsp != null)         pills.push(<StatPill key="cs" label="CSP"                               value={meta.hasCsp ? '✓' : '✗'} ok={meta.hasCsp as boolean} />);
+    if (meta.presentSecurityHeaders) {
+      const present = meta.presentSecurityHeaders as string[];
+      pills.push(<StatPill key="sh" label={isRtl ? 'כותרות אבטחה' : 'Security headers'} value={`${present.length}/6`} ok={present.length >= 4} />);
+    }
+    if (meta.serverHeader)           pills.push(<StatPill key="sv" label="Server" value={String(meta.serverHeader).slice(0, 20)} ok={false} />);
+    if (meta.xPoweredBy)             pills.push(<StatPill key="xp" label="X-Powered-By" value={String(meta.xPoweredBy).slice(0, 20)} ok={false} />);
+  }
+
+  if (analyzer === 'accessibility') {
+    if (meta.hasLangAttr != null)    pills.push(<StatPill key="la" label={isRtl ? 'שפה' : 'lang attr'} value={meta.langValue ? String(meta.langValue) : '✗'} ok={meta.hasLangAttr as boolean} />);
+    if (meta.imageCount != null)     pills.push(<StatPill key="ia" label={isRtl ? 'תמונות עם alt' : 'Images with alt'} value={`${meta.imagesWithAlt}/${meta.imageCount}`} ok={(meta.imagesWithAlt as number) === (meta.imageCount as number)} />);
+    if (meta.headingStructure)       pills.push(<StatPill key="hs" label={isRtl ? 'מבנה כותרות' : 'Headings'} value={String(meta.headingStructure)} />);
+    if (meta.inputCount != null && (meta.inputCount as number) > 0) pills.push(<StatPill key="in" label={isRtl ? 'שדות' : 'Inputs'} value={`${meta.labelCount}/${meta.inputCount} labeled`} ok={(meta.labelCount as number) >= (meta.inputCount as number)} />);
+  }
+
+  if (pills.length === 0) return null;
+
+  return (
+    <div className="px-4 pb-1 pt-2">
+      <div className="flex flex-wrap gap-2">
+        {pills}
+      </div>
+    </div>
+  );
+}
+
 // ── Score ring ────────────────────────────────────────────────────────────────
 
 function ScoreRing({ score, color, size = 72 }: { score: number; color: string; size?: number }) {
@@ -512,6 +585,11 @@ export default function ReportPage() {
                     <span className="text-xs text-[#A1A1AA]">/100</span>
                   </div>
                 </div>
+
+                {/* Metadata stats bar */}
+                {result.metadata && Object.keys(result.metadata).length > 0 && (
+                  <MetaBar analyzer={result.analyzer} meta={result.metadata} isRtl={isRtl} />
+                )}
 
                 {/* Issues list */}
                 <div className="p-4 space-y-3">

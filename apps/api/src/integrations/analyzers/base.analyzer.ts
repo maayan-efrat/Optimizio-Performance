@@ -34,6 +34,10 @@ export interface WebsiteData {
   fetchedImages?: FetchedImage[];
   screenshot?: string;
   metrics?: Record<string, unknown>;
+  fetchDurationMs?: number;
+  htmlSizeBytes?: number;
+  hasSitemap?: boolean;
+  hasRobotsTxt?: boolean;
 }
 
 export abstract class BaseAnalyzer {

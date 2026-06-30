@@ -46,6 +46,12 @@ export interface AnalyzerResult {
   metadata?: Record<string, unknown>;
 }
 
+export interface CompareResult {
+  url: string;
+  overall: number;
+  scores: Record<string, number>;
+}
+
 export interface CWVData {
   lcp: number | null;
   cls: number | null;
@@ -139,11 +145,15 @@ export const api = {
       }
       return request<{ user: AuthUser }>('/auth/me');
     },
+    updateProfile: (body: { name: string }) =>
+      request<{ user: AuthUser }>('/auth/me', { method: 'PATCH', body: JSON.stringify(body) }),
   },
   projects: {
     list: () => request<Project[]>('/projects'),
     create: (body: { name: string; domain: string }) =>
       request<Project>('/projects', { method: 'POST', body: JSON.stringify(body) }),
+    delete: (id: string) =>
+      request<{ deleted: boolean }>(`/projects/${id}`, { method: 'DELETE' }),
   },
   scans: {
     create: (body: { projectId: string; url: string; locale?: string }) =>
@@ -153,5 +163,7 @@ export const api = {
       fetch(`${API_BASE_URL}/scans/public/${id}`)
         .then(r => r.ok ? r.json() : Promise.reject(r)) as Promise<Scan>,
     listByProject: (projectId: string) => request<Scan[]>(`/scans/project/${projectId}`),
+    compare: (urls: string[]) =>
+      request<CompareResult[]>('/scans/compare', { method: 'POST', body: JSON.stringify({ urls }) }),
   },
 };

@@ -56,6 +56,17 @@ export class ScanEngineService {
     this.psiService = new PSIService();
   }
 
+  // Lightweight score-only audit — no AI, no PSI, no image probing
+  async runQuickScore(url: string): Promise<{ url: string; scores: Record<string, number>; overall: number }> {
+    const { html, headers, durationMs, sizeBytes } = await this.fetchPage(url);
+    const websiteData: WebsiteData = { url, html, responseHeaders: headers, fetchDurationMs: durationMs, htmlSizeBytes: sizeBytes };
+    const results = await Promise.all(this.analyzers.map(a => a.analyze(websiteData)));
+    const overall = this.computeWeightedScore(results);
+    const scores: Record<string, number> = {};
+    for (const r of results) scores[r.analyzer] = r.score;
+    return { url, scores, overall };
+  }
+
   async runFullAudit(
     url: string,
     locale: 'he' | 'en' = 'en',
@@ -63,16 +74,27 @@ export class ScanEngineService {
     console.log(`[ScanEngine] Starting audit for ${url}`);
 
     // Fetch page HTML and call PSI in parallel (PSI takes 3-15s)
-    const [{ html, headers }, cwv] = await Promise.all([
+    const [{ html, headers, durationMs, sizeBytes }, cwv] = await Promise.all([
       this.fetchPage(url),
       this.psiService.fetch(url),
     ]);
-    console.log(`[ScanEngine] Fetched HTML (${html.length} chars) — PSI: ${cwv.psiScore ?? 'n/a'}`);
+    console.log(`[ScanEngine] Fetched HTML (${html.length} chars, ${durationMs}ms) — PSI: ${cwv.psiScore ?? 'n/a'}`);
 
     const fetchedImages = await this.probeImages(url, html);
     console.log(`[ScanEngine] Probed ${fetchedImages.length} images`);
 
-    const websiteData: WebsiteData = { url, html, responseHeaders: headers, fetchedImages };
+    // Probe robots.txt and sitemap.xml in parallel (best-effort)
+    const origin = new URL(url).origin;
+    const [hasSitemap, hasRobotsTxt] = await Promise.all([
+      this.probeExists(`${origin}/sitemap.xml`),
+      this.probeExists(`${origin}/robots.txt`),
+    ]);
+
+    const websiteData: WebsiteData = {
+      url, html, responseHeaders: headers, fetchedImages,
+      fetchDurationMs: durationMs, htmlSizeBytes: sizeBytes,
+      hasSitemap, hasRobotsTxt,
+    };
 
     const results = await Promise.all(
       this.analyzers.map(a => a.analyze(websiteData)),
@@ -106,22 +128,35 @@ export class ScanEngineService {
 
   private async fetchPage(
     url: string,
-  ): Promise<{ html: string; headers: Record<string, string> }> {
+  ): Promise<{ html: string; headers: Record<string, string>; durationMs: number; sizeBytes: number }> {
+    const t0 = Date.now();
     try {
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 15_000);
+      const timer = setTimeout(() => ctrl.abort(), 15_000);
       const res = await fetch(url, {
         headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml,*/*' },
         signal: ctrl.signal,
       });
-      clearTimeout(t);
+      clearTimeout(timer);
       const html = await res.text();
       const headers: Record<string, string> = {};
       res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
-      return { html, headers };
+      return { html, headers, durationMs: Date.now() - t0, sizeBytes: Buffer.byteLength(html, 'utf8') };
     } catch (err) {
       console.warn(`[ScanEngine] Failed to fetch ${url}:`, err);
-      return { html: '', headers: {} };
+      return { html: '', headers: {}, durationMs: Date.now() - t0, sizeBytes: 0 };
+    }
+  }
+
+  private async probeExists(url: string): Promise<boolean> {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 5_000);
+      const res = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': UA }, signal: ctrl.signal });
+      clearTimeout(t);
+      return res.ok;
+    } catch {
+      return false;
     }
   }
 

@@ -10,6 +10,7 @@ import { ProtectedLayout } from '@/components/layout/protected-layout';
 import { useAuth } from '@/contexts/auth';
 import { useLocale } from '@/contexts/locale';
 import { getDictionary } from '@/lib/i18n';
+import { api } from '@/lib/api';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -24,11 +25,17 @@ export default function SettingsPage() {
     if (user) setName(user.name);
   }, [user]);
 
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!name.trim()) return;
     setSaveState('saving');
-    setTimeout(() => setSaveState('saved'), 800);
-    setTimeout(() => setSaveState('idle'), 3000);
+    try {
+      await api.auth.updateProfile({ name: name.trim() });
+      setSaveState('saved');
+      setTimeout(() => setSaveState('idle'), 3000);
+    } catch {
+      setSaveState('idle');
+    }
   }
 
   const inputCls = 'w-full px-4 py-2.5 rounded-xl border border-white/10 bg-[#09090B] text-[#F9FAFB] outline-none focus:border-[#EC4899]';
