@@ -14,7 +14,15 @@ export const metadata: Metadata = {
   },
   description: 'כלי AI לניתוח ביצועי אתרים, SEO, אבטחה ונגישות. קבלו דוח מפורט ותוכנית שיפור תוך 30 שניות.',
   keywords: ['ביצועי אתרים', 'SEO', 'אבטחת אתרים', 'נגישות', 'web performance', 'website audit', 'אופטימיזציה'],
-  alternates: { canonical: '/' },
+  alternates: {
+    canonical: '/',
+    languages: {
+      'he':        SITE_URL,
+      'en':        SITE_URL,
+      'x-default': SITE_URL,
+    },
+  },
+  manifest: '/manifest.json',
   openGraph: {
     type: 'website',
     locale: 'he_IL',

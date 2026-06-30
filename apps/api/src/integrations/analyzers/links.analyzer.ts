@@ -75,8 +75,12 @@ export class LinksAnalyzer extends BaseAnalyzer {
 
     const allResults = [...internalResults, ...externalResults];
 
+    // ── Auth-gated internal links (401/403 — not actually broken) ──────────────
+    const AUTH_STATUSES = new Set([401, 403]);
+    const authProtected = allResults.filter(r => r.status !== null && AUTH_STATUSES.has(r.status));
+
     // ── Internal broken links ─────────────────────────────────────────────────
-    const brokenInternal = internalResults.filter(r => r.status !== null && r.status >= 400);
+    const brokenInternal = internalResults.filter(r => r.status !== null && r.status >= 400 && !AUTH_STATUSES.has(r.status));
     if (brokenInternal.length > 0) {
       issues.push({
         title: `${brokenInternal.length} broken internal link(s) (4xx/5xx)`,
@@ -91,7 +95,7 @@ export class LinksAnalyzer extends BaseAnalyzer {
     }
 
     // ── External broken links ─────────────────────────────────────────────────
-    const brokenExternal = externalResults.filter(r => r.status !== null && r.status >= 400);
+    const brokenExternal = externalResults.filter(r => r.status !== null && r.status >= 400 && !AUTH_STATUSES.has(r.status));
     if (brokenExternal.length > 0) {
       issues.push({
         title: `${brokenExternal.length} broken external link(s)`,
@@ -158,6 +162,7 @@ export class LinksAnalyzer extends BaseAnalyzer {
         externalChecked: externalResults.length,
         brokenLinks: brokenInternal.length + brokenExternal.length,
         redirectedLinks: redirected.length,
+        authProtectedLinks: authProtected.length,
         hasCustom404: data.hasCustom404 ?? null,
       },
     };

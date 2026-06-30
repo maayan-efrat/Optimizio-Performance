@@ -701,6 +701,56 @@ export default function ReportPage() {
             </motion.div>
           )}
 
+          {/* ── Export History ──────────────────────────────────────────────── */}
+          {exportHistory.length > 0 && (
+            <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-violet-500/20 bg-violet-500/5 overflow-hidden no-print">
+              <div className="flex items-center gap-3 p-5 border-b border-white/10">
+                <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-2">
+                  <Bot className="h-4 w-4 text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-[#F9FAFB]">
+                    {isRtl ? 'היסטוריית ייצוא לAI' : 'AI Export History'}
+                  </h2>
+                  <p className="text-xs text-[#A1A1AA]">
+                    {isRtl ? `${exportHistory.length} ייצואים בוצעו עבור סריקה זו` : `${exportHistory.length} exports for this scan`}
+                  </p>
+                </div>
+              </div>
+              <div className="divide-y divide-white/5">
+                {exportHistory.map((item, idx) => (
+                  <div key={item.id} className="flex items-center gap-3 px-5 py-3.5">
+                    <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-white/5 text-[11px] font-bold text-[#A1A1AA]">
+                      {exportHistory.length - idx}
+                    </span>
+                    <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-bold ${
+                      item.lang === 'he'
+                        ? 'border-violet-500/30 bg-violet-500/10 text-violet-300'
+                        : 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                    }`}>
+                      {item.lang === 'he' ? 'עברית' : 'English'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      {item.userContext ? (
+                        <p className="text-sm text-[#F9FAFB] truncate">{item.userContext}</p>
+                      ) : (
+                        <p className="text-sm text-[#64748B] italic">
+                          {isRtl ? 'ייצוא ללא הקשר נוסף' : 'Export with no extra context'}
+                        </p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-xs text-[#64748B] whitespace-nowrap">
+                      {new Date(item.createdAt).toLocaleDateString(isRtl ? 'he-IL' : 'en-US', {
+                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          )}
+
           {/* ── Severity filter bar ─────────────────────────────────────────── */}
           {raw.length > 0 && (
             <div className="flex flex-wrap gap-2 no-print">
@@ -847,55 +897,6 @@ export default function ReportPage() {
                         {item.codeExample}
                       </pre>
                     )}
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-          )}
-
-          {/* ── Export History ──────────────────────────────────────────────── */}
-          {exportHistory.length > 0 && (
-            <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-white/10 bg-[#111827]/80 overflow-hidden no-print">
-              <div className="flex items-center gap-3 p-5 border-b border-white/10">
-                <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-2">
-                  <Bot className="h-4 w-4 text-violet-400" />
-                </div>
-                <div>
-                  <h2 className="font-semibold text-[#F9FAFB]">
-                    {isRtl ? 'היסטוריית ייצוא לAI' : 'AI Export History'}
-                  </h2>
-                  <p className="text-xs text-[#A1A1AA]">
-                    {isRtl ? `${exportHistory.length} ייצואים` : `${exportHistory.length} exports`}
-                  </p>
-                </div>
-              </div>
-              <div className="divide-y divide-white/5">
-                {exportHistory.map((item) => (
-                  <div key={item.id} className="flex items-start gap-3 px-5 py-4">
-                    <div className="shrink-0 mt-0.5">
-                      <span className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                        item.lang === 'he'
-                          ? 'border-violet-500/30 bg-violet-500/10 text-violet-300'
-                          : 'border-blue-500/30 bg-blue-500/10 text-blue-300'
-                      }`}>
-                        {item.lang === 'he' ? 'עב׳' : 'EN'}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {item.userContext ? (
-                        <p className="text-sm text-[#F9FAFB] truncate">{item.userContext}</p>
-                      ) : (
-                        <p className="text-sm text-[#64748B] italic">
-                          {isRtl ? 'ללא הקשר' : 'No context added'}
-                        </p>
-                      )}
-                    </div>
-                    <span className="shrink-0 text-xs text-[#64748B] whitespace-nowrap">
-                      {new Date(item.createdAt).toLocaleDateString(isRtl ? 'he-IL' : 'en-US', {
-                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                      })}
-                    </span>
                   </div>
                 ))}
               </div>

@@ -12,7 +12,22 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
 
     // ── Server response time (TTFB) ───────────────────────────────────────────
     const durationMs = data.fetchDurationMs ?? 0;
-    if (durationMs > 3000) {
+    // Next.js dev server ships unhashed, version-querystring chunk names (e.g.
+    // webpack.js?v=<timestamp>) that never appear in a production build — a
+    // reliable signal that on-demand compilation, not real infra, explains TTFB.
+    const isNextDevServer = /_next\/static\/chunks\/webpack\.js["'?]/.test(html)
+      || /_next\/static\/chunks\/[^"']+\.js\?v=\d+/.test(html);
+
+    if (isNextDevServer) {
+      issues.push({
+        title: 'Next.js development server detected — TTFB not representative',
+        severity: 'low',
+        description: `This page is served by a Next.js dev server (response took ${durationMs}ms). Dev mode compiles routes on demand and skips minification/caching, so TTFB here won't match production.`,
+        whyItMatters: 'Scoring dev-mode latency as if it were production gives a misleading performance score.',
+        recommendation: 'Re-run this scan against the deployed production URL for accurate TTFB numbers.',
+        estimatedImpact: '0 points',
+      });
+    } else if (durationMs > 3000) {
       issues.push({
         title: `Very slow server — ${(durationMs / 1000).toFixed(1)}s response time`,
         severity: durationMs > 6000 ? 'critical' : 'high',
@@ -188,7 +203,9 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
 
     // ── Render-blocking JS ────────────────────────────────────────────────────
     const scriptMatches = [...html.matchAll(/<script[^>]+src="([^"]+)"[^>]*>/gi)];
-    const blockingJs = scriptMatches.filter(m => !m[0].includes('defer') && !m[0].includes('async'));
+    // nomodule scripts (legacy-browser fallback bundles) are skipped entirely by
+    // any browser that supports module scripts, so they don't block rendering there.
+    const blockingJs = scriptMatches.filter(m => !m[0].includes('defer') && !m[0].includes('async') && !m[0].includes('nomodule'));
     if (blockingJs.length > 0) {
       issues.push({
         title: `${blockingJs.length} render-blocking script(s)`,
@@ -390,6 +407,7 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
       recommendations: [],
       metadata: {
         fetchDurationMs: durationMs || null,
+        isNextDevServer,
         compression: encoding || 'none',
         hasCacheControl: !!cacheControl,
         cacheControl: cacheControl || null,
