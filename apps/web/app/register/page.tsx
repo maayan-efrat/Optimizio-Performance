@@ -41,7 +41,7 @@ export default function RegisterPage() {
       const res = await api.auth.register({ email, password, name });
       if (res.token && res.user) {
         login(res.token, res.user);
-        router.push('/dashboard');
+        router.push('/onboarding');
         return;
       }
       setEmailSent(true);

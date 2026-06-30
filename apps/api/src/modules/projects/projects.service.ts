@@ -22,6 +22,12 @@ export class ProjectsService {
     return this.prisma.project.findFirst({ where: { id, userId } });
   }
 
+  async updateFrequency(id: string, userId: string, frequency: 'manual' | 'weekly' | 'monthly') {
+    const project = await this.prisma.project.findFirst({ where: { id, userId } });
+    if (!project) return null;
+    return this.prisma.project.update({ where: { id }, data: { scanFrequency: frequency } });
+  }
+
   async delete(id: string, userId: string) {
     const project = await this.prisma.project.findFirst({ where: { id, userId } });
     if (!project) return { deleted: false };

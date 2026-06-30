@@ -150,7 +150,7 @@ function LoginForm() {
                 <input type="checkbox" className="h-4 w-4 rounded border-white/10" />
                 <span className="text-[#A1A1AA]">{t.remember}</span>
               </label>
-              <Link href="#" className="text-[#EC4899] hover:text-[#EC4899]/80">{t.forgot}</Link>
+              <Link href="/forgot-password" className="text-[#EC4899] hover:text-[#EC4899]/80">{t.forgot}</Link>
             </div>
 
             <Button className="w-full" disabled={isLoading}>

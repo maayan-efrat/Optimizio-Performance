@@ -142,6 +142,7 @@ export const dictionary = {
       freeBonus: '150 free credits on sign-up — 1 free scan included!',
       packages: [
         {
+          packageId: 'pack_200',
           name: 'Starter Pack',
           credits: 200,
           price: '₪10',
@@ -151,6 +152,7 @@ export const dictionary = {
           highlight: false,
         },
         {
+          packageId: 'pack_500',
           name: 'Growth Pack',
           credits: 500,
           price: '₪22',
@@ -160,6 +162,7 @@ export const dictionary = {
           highlight: true,
         },
         {
+          packageId: 'pack_1200',
           name: 'Pro Pack',
           credits: 1200,
           price: '₪45',
@@ -374,6 +377,7 @@ export const dictionary = {
       freeBonus: '150 קרדיטים חינם בהצטרפות — סריקה ראשונה בחינם!',
       packages: [
         {
+          packageId: 'pack_200',
           name: 'חבילת התחלה',
           credits: 200,
           price: '₪10',
@@ -383,6 +387,7 @@ export const dictionary = {
           highlight: false,
         },
         {
+          packageId: 'pack_500',
           name: 'חבילת צמיחה',
           credits: 500,
           price: '₪22',
@@ -392,6 +397,7 @@ export const dictionary = {
           highlight: true,
         },
         {
+          packageId: 'pack_1200',
           name: 'חבילת Pro',
           credits: 1200,
           price: '₪45',

@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, LoaderCircle, Radar, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProtectedLayout } from '@/components/layout/protected-layout';
@@ -26,35 +26,73 @@ export default function ScanPage() {
   const [activeStep, setActiveStep] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState('');
+  const [pollScanId, setPollScanId] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const progress = useMemo(() => ((activeStep + 1) / t.steps.length) * 100, [activeStep, t.steps.length]);
+
+  // Poll scan progress when we have a scanId
+  useEffect(() => {
+    if (!pollScanId) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        const { status, progressPercent } = await api.scans.getProgress(pollScanId);
+        // Map backend progressPercent (0-100) to step index
+        const stepIdx = Math.min(
+          Math.floor((progressPercent / 100) * t.steps.length),
+          t.steps.length - 1,
+        );
+        setActiveStep(stepIdx);
+        if (status === 'completed') {
+          clearInterval(pollRef.current!);
+          clearInterval(intervalRef.current!);
+          setActiveStep(t.steps.length - 1);
+          setTimeout(() => router.push(`/report/${pollScanId}`), 800);
+        } else if (status === 'failed') {
+          clearInterval(pollRef.current!);
+          clearInterval(intervalRef.current!);
+          setIsScanning(false);
+          setActiveStep(0);
+          setError(isRtl ? 'הסריקה נכשלה. נסי שנית.' : 'Scan failed. Please try again.');
+          setPollScanId(null);
+        }
+      } catch {
+        // ignore transient errors
+      }
+    }, 2000);
+    return () => clearInterval(pollRef.current!);
+  }, [pollScanId, t.steps.length, router, isRtl]);
+
+  // Fake step animation while waiting for real data
+  useEffect(() => {
+    if (!isScanning || pollScanId) return;
+    intervalRef.current = setInterval(() => {
+      setActiveStep(cur => {
+        if (cur >= t.steps.length - 2) { clearInterval(intervalRef.current!); return cur; }
+        return cur + 1;
+      });
+    }, 900);
+    return () => clearInterval(intervalRef.current!);
+  }, [isScanning, pollScanId, t.steps.length]);
 
   async function startScan() {
     if (!url.trim()) return;
     setError('');
     setIsScanning(true);
     setActiveStep(0);
-
-    intervalRef.current = setInterval(() => {
-      setActiveStep((cur) => {
-        if (cur >= t.steps.length - 2) { clearInterval(intervalRef.current!); return cur; }
-        return cur + 1;
-      });
-    }, 900);
+    setPollScanId(null);
 
     try {
       const domain = parseDomain(url);
       const project = await api.projects.create({ name: domain, domain: url });
-      await api.scans.create({ projectId: project.id, url, locale });
-      clearInterval(intervalRef.current!);
-      setActiveStep(t.steps.length - 1);
-      setTimeout(() => router.push('/dashboard'), 800);
+      const scan = await api.scans.create({ projectId: project.id, url, locale });
+      setPollScanId(scan.id); // start polling
     } catch (err) {
       clearInterval(intervalRef.current!);
       setIsScanning(false);
       setActiveStep(0);
-      setError(err instanceof Error ? err.message : 'Scan failed. Please try again.');
+      setError(err instanceof Error ? err.message : (isRtl ? 'סריקה נכשלה. נסי שנית.' : 'Scan failed. Please try again.'));
     }
   }
 

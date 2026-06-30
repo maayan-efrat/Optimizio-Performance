@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Sparkles, Star, Gift } from 'lucide-react';
-import Link from 'next/link';
+import { Zap, Sparkles, Star, Gift, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useLocale } from '@/contexts/locale';
 import { getDictionary } from '@/lib/i18n';
+import { api } from '@/lib/api';
 
 const PACK_ICONS = [Zap, Sparkles, Star];
 
@@ -12,6 +14,26 @@ export default function PricingPage() {
   const { locale } = useLocale();
   const t = getDictionary(locale).pricing;
   const isRtl = locale === 'he';
+  const router = useRouter();
+  const [loadingPkg, setLoadingPkg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleBuy(packageId: string) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    if (!token) {
+      router.push('/register');
+      return;
+    }
+    setLoadingPkg(packageId);
+    setError(null);
+    try {
+      const { url } = await api.payments.createCheckout(packageId);
+      window.location.href = url;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'שגיאה, נסי שוב');
+      setLoadingPkg(null);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-transparent text-[#F9FAFB]" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -32,13 +54,21 @@ export default function PricingPage() {
           </div>
         </motion.div>
 
+        {/* Error banner */}
+        {error && (
+          <div className="mx-auto max-w-xl mb-8 rounded-xl border border-red-500/30 bg-red-500/10 px-6 py-4 text-center text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
         {/* Credit packages */}
         <div className="grid gap-6 md:grid-cols-3">
           {t.packages.map((pkg, i) => {
             const Icon = PACK_ICONS[i];
+            const isLoading = loadingPkg === pkg.packageId;
             return (
               <motion.div
-                key={pkg.name}
+                key={pkg.packageId}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + i * 0.1 }}
@@ -88,16 +118,20 @@ export default function PricingPage() {
                     </div>
                     <p className="text-xs text-[#64748B] mb-6">{pkg.priceNote}</p>
 
-                    <Link
-                      href="/register"
-                      className={`block w-full text-center rounded-xl py-3 font-semibold text-sm transition-all ${
+                    <button
+                      onClick={() => handleBuy(pkg.packageId)}
+                      disabled={loadingPkg !== null}
+                      className={`block w-full text-center rounded-xl py-3 font-semibold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                         pkg.highlight
                           ? 'bg-gradient-to-r from-violet-500 to-blue-500 text-white hover:from-violet-600 hover:to-blue-600 shadow-lg'
                           : 'border border-white/15 bg-white/5 text-[#F9FAFB] hover:bg-white/10'
                       }`}
                     >
-                      {pkg.cta}
-                    </Link>
+                      {isLoading
+                        ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {isRtl ? 'מעבירה לתשלום...' : 'Redirecting...'}</span>
+                        : pkg.cta
+                      }
+                    </button>
                   </div>
                 </div>
               </motion.div>

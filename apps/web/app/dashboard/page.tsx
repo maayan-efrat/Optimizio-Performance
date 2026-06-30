@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { ArrowRight, Activity, AlertTriangle, Sparkles, Plus, Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ArrowRight, Activity, AlertTriangle, Sparkles, Plus, Loader2, TrendingUp, TrendingDown, Minus, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Badge } from '@/components/ui/badge';
@@ -108,7 +108,23 @@ export default function DashboardPage() {
                   })()}
                 </h1>
               </div>
-              <Link href="/scan"><Button>{t.newScan} <ArrowRight className="ms-2 h-4 w-4" /></Button></Link>
+              <div className="flex items-center gap-3">
+                {user?.credits !== undefined && (
+                  <Link
+                    href="/pricing"
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                      user.credits < 100
+                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                        : 'border-cyan-500/25 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20'
+                    }`}
+                  >
+                    <Zap className="h-4 w-4" />
+                    {user.credits} {isRtl ? 'קרדיטים' : 'credits'}
+                    {user.credits < 100 && <span className="ms-1 text-xs opacity-80">{isRtl ? '— רכשי עוד' : '— buy more'}</span>}
+                  </Link>
+                )}
+                <Link href="/scan"><Button>{t.newScan} <ArrowRight className="ms-2 h-4 w-4" /></Button></Link>
+              </div>
             </div>
             {projects.length > 0 && (
               <p className="max-w-3xl text-lg leading-8 text-[#A1A1AA]">

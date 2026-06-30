@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ScansService } from './scans.service';
 import { ScanEngineService } from '../../integrations/scan-engine.service';
 import { JwtAuthGuard } from '../../common/guards/jwt.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('scans')
 export class ScansController {
@@ -33,14 +34,25 @@ export class ScansController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() body: { projectId: string; url: string; locale?: 'he' | 'en' }) {
-    return this.scansService.create(body);
+  create(
+    @Body() body: { projectId: string; url: string; locale?: 'he' | 'en' },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.scansService.create(body, user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('project/:projectId')
   listByProject(@Param('projectId') projectId: string) {
     return this.scansService.listByProject(projectId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/progress')
+  async getProgress(@Param('id') id: string) {
+    const scan = await this.scansService.get(id);
+    if (!scan) return { status: 'not_found', progressPercent: 0 };
+    return { id: scan.id, status: scan.status, progressPercent: scan.progressPercent };
   }
 
   @UseGuards(JwtAuthGuard)

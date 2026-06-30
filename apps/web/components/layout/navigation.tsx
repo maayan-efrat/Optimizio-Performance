@@ -87,11 +87,18 @@ export function Navigation() {
           {/* Right side */}
           <div className="hidden md:flex items-center gap-3">
             {/* Credits badge (when logged in) */}
-            {user && (user as any).credits !== undefined && (
-              <div className="flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-400">
+            {user && user.credits !== undefined && (
+              <Link
+                href="/pricing"
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                  user.credits < 100
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                    : 'border-cyan-500/25 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20'
+                }`}
+              >
                 <Zap className="h-3 w-3" />
-                {(user as any).credits} {isRtl ? 'קרדיטים' : 'credits'}
-              </div>
+                {user.credits} {isRtl ? 'קרדיטים' : 'credits'}
+              </Link>
             )}
 
             {/* Locale toggle */}
@@ -167,6 +174,20 @@ export function Navigation() {
               {user ? (
                 <>
                   <p className="text-sm text-[#9b9dc9]">{user.name}</p>
+                  {user.credits !== undefined && (
+                    <Link
+                      href="/pricing"
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs w-fit ${
+                        user.credits < 100
+                          ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                          : 'border-cyan-500/25 bg-cyan-500/10 text-cyan-400'
+                      }`}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <Zap className="h-3 w-3" />
+                      {user.credits} {isRtl ? 'קרדיטים' : 'credits'}
+                    </Link>
+                  )}
                   <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-[#9b9dc9]">
                     <LogOut className="h-3.5 w-3.5" /> {isRtl ? 'יציאה' : 'Sign out'}
                   </button>

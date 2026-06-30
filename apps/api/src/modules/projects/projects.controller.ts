@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, Request } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { JwtAuthGuard } from '../../common/guards/jwt.guard';
 
@@ -23,6 +23,15 @@ export class ProjectsController {
   @Get(':id')
   get(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.projectsService.get(id, req.user.id);
+  }
+
+  @Patch(':id/frequency')
+  updateFrequency(
+    @Param('id') id: string,
+    @Request() req: { user: { id: string } },
+    @Body() body: { frequency: 'manual' | 'weekly' | 'monthly' },
+  ) {
+    return this.projectsService.updateFrequency(id, req.user.id, body.frequency);
   }
 
   @Delete(':id')

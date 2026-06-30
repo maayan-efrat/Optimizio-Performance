@@ -155,9 +155,27 @@ export const api = {
     delete: (id: string) =>
       request<{ deleted: boolean }>(`/projects/${id}`, { method: 'DELETE' }),
   },
+  admin: {
+    getStats: () =>
+      request<{ totalUsers: number; totalScans: number; totalProjects: number; scansToday: number }>('/admin/stats'),
+    getUsers: () =>
+      request<Array<{ id: string; email: string; name: string; role: string; credits: number; emailVerified: boolean; createdAt: string; _count: { projects: number } }>>('/admin/users'),
+    updateCredits: (userId: string, credits: number) =>
+      request<{ id: string; credits: number }>(`/admin/users/${userId}/credits`, { method: 'PATCH', body: JSON.stringify({ credits }) }),
+    updateRole: (userId: string, role: 'user' | 'admin') =>
+      request<{ id: string; role: string }>(`/admin/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  },
+  payments: {
+    createCheckout: (packageId: string) =>
+      request<{ url: string }>('/payments/checkout', { method: 'POST', body: JSON.stringify({ packageId }) }),
+    getCredits: () =>
+      request<{ credits: number }>('/payments/credits'),
+  },
   scans: {
     create: (body: { projectId: string; url: string; locale?: string }) =>
       request<Scan>('/scans', { method: 'POST', body: JSON.stringify(body) }),
+    getProgress: (id: string) =>
+      request<{ id: string; status: string; progressPercent: number }>(`/scans/${id}/progress`),
     get: (id: string) => request<Scan>(`/scans/${id}`),
     getPublic: (id: string) =>
       fetch(`${API_BASE_URL}/scans/public/${id}`)
