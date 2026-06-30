@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  name                 String
+  password             String?
+  googleId             String?   @unique
+  role                 String    @default("user")
+  credits              Int       @default(150)
+  emailVerified        Boolean   @default(false)
+  emailVerifyToken     String?
+  emailVerifyExpires   DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  projects  Project[]
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  domain    String
+  status    String   @default("active")
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  scans     Scan[]
+}
+
+model Scan {
+  id                 String   @id @default(cuid())
+  projectId          String
+  url                String
+  status             String   @default("pending")
+  progressPercent    Int      @default(0)
+  overallScore       Int?
+  performanceScore   Int?
+  seoScore           Int?
+  accessibilityScore Int?
+  securityScore      Int?
+  aiSummary          String?
+  priorityRoadmap    Json?
+  rawResults         Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project   Project  @relation(fields: [projectId], references: [id])
+}

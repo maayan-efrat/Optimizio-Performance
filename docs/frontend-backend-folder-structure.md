@@ -1,0 +1,106 @@
+# Optimizio Performance - Scalable Folder Structure
+
+## Frontend
+```text
+apps/web/
+  app/
+    (marketing)/
+    (dashboard)/
+    api/
+    globals.css
+    layout.tsx
+    page.tsx
+    sitemap.ts
+    robots.ts
+  components/
+    ui/
+    layout/
+    features/
+    forms/
+    charts/
+    feedback/
+  features/
+    auth/
+    projects/
+    scans/
+    dashboard/
+    reports/
+    analytics/
+  hooks/
+    use-auth.ts
+    use-projects.ts
+    use-scans.ts
+  services/
+    api.ts
+    auth.service.ts
+    scan.service.ts
+    analytics.service.ts
+  stores/
+    auth.store.ts
+    ui.store.ts
+  types/
+    auth.ts
+    project.ts
+    scan.ts
+    api.ts
+  utils/
+    cn.ts
+    formatters.ts
+    validators.ts
+    rtl.ts
+  tests/
+    unit/
+    e2e/
+```
+
+## Backend
+```text
+apps/api/
+  src/
+    app/
+      app.module.ts
+      app.controller.ts
+      app.service.ts
+    modules/
+      auth/
+      users/
+      projects/
+      scans/
+      analytics/
+      reports/
+      notifications/
+      subscriptions/
+    common/
+      decorators/
+      guards/
+      interceptors/
+      filters/
+      pipes/
+      dto/
+    integrations/
+      ai/
+      lighthouse/
+      storage/
+      email/
+    queues/
+      scan.queue.ts
+    workers/
+      scan.worker.ts
+    repositories/
+      prisma/
+    config/
+      env.ts
+    infrastructure/
+      logging/
+      monitoring/
+      health/
+    main.ts
+  test/
+```
+
+## Shared
+```text
+packages/
+  ui/
+  shared-types/
+```
