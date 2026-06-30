@@ -1,8 +1,23 @@
 import type { Metadata } from 'next';
+import { Inter, Heebo } from 'next/font/google';
 import './globals.css';
 import { Navigation } from '@/components/layout/navigation';
 import { AuthProvider } from '@/contexts/auth';
 import { LocaleProvider } from '@/contexts/locale';
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const heebo = Heebo({
+  subsets: ['hebrew', 'latin'],
+  weight: ['400', '500', '700', '800'],
+  variable: '--font-heebo',
+  display: 'swap',
+});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://optimizio.co.il';
 
@@ -63,7 +78,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl">
+    <html lang="he" dir="rtl" className={`${inter.variable} ${heebo.variable}`}>
       <head>
         <script
           type="application/ld+json"

@@ -20,8 +20,8 @@ export default {
         'glow-cyan': '0 0 0 1px rgba(6, 182, 212, 0.15), 0 8px 40px rgba(6, 182, 212, 0.12)',
       },
       fontFamily: {
-        sans: ['Inter', 'Heebo', 'sans-serif'],
-        hebrew: ['Heebo', 'Inter', 'sans-serif'],
+        sans: ['var(--font-inter)', 'var(--font-heebo)', 'sans-serif'],
+        hebrew: ['var(--font-heebo)', 'var(--font-inter)', 'sans-serif'],
       },
     },
   },

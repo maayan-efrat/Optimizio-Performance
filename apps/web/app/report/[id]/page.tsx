@@ -653,54 +653,6 @@ export default function ReportPage() {
             </div>
           </motion.div>
 
-          {/* ── Core Web Vitals ─────────────────────────────────────────────── */}
-          {hasCWV && (
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-white/10 bg-[#111827]/80 overflow-hidden">
-              <div className="flex items-center justify-between gap-3 p-5 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-yellow-400" />
-                  <h2 className="font-semibold">Core Web Vitals</h2>
-                  <span className="text-xs text-[#A1A1AA]">{isRtl ? '— מדד גוגל' : '— Google benchmark'}</span>
-                </div>
-                {cwv?.psiScore !== null && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-[#A1A1AA]">PageSpeed:</span>
-                    <span className={`text-2xl font-bold ${psiScoreColor(cwv?.psiScore ?? null)}`}>
-                      {cwv?.psiScore}
-                    </span>
-                    <span className="text-xs text-[#A1A1AA]">/100</span>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <CWVCard label="LCP"  display={cwv?.lcpDisplay  ?? null} value={cwv?.lcp  ?? null} metric="lcp"  isRtl={isRtl} />
-                  <CWVCard label="CLS"  display={cwv?.clsDisplay  ?? null} value={cwv?.cls  ?? null} metric="cls"  isRtl={isRtl} />
-                  <CWVCard label="INP"  display={cwv?.inpDisplay  ?? null} value={cwv?.inp  ?? null} metric="inp"  isRtl={isRtl} />
-                  <CWVCard label="TTFB" display={cwv?.ttfbDisplay ?? null} value={cwv?.ttfb ?? null} metric="ttfb" isRtl={isRtl} />
-                </div>
-                <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-[#A1A1AA] space-y-1">
-                  <p>• LCP {isRtl ? '(Largest Contentful Paint) — זמן טעינת האלמנט הגדול. טוב: < 2.5s' : '(Largest Contentful Paint) — load time of largest element. Good: < 2.5s'}</p>
-                  <p>• CLS {isRtl ? '(Cumulative Layout Shift) — קפיצות פריסה. טוב: < 0.1' : '(Cumulative Layout Shift) — visual instability. Good: < 0.1'}</p>
-                  <p>• INP {isRtl ? '(Interaction to Next Paint) — תגובה לקליק. טוב: < 200ms' : '(Interaction to Next Paint) — click response. Good: < 200ms'}</p>
-                  <p>• TTFB {isRtl ? '(Time to First Byte) — תגובת השרת. טוב: < 800ms' : '(Time to First Byte) — server response. Good: < 800ms'}</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ── AI Summary ──────────────────────────────────────────────────── */}
-          {scan.aiSummary && (
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-5">
-              <p className="text-xs font-semibold text-violet-300 mb-2 flex items-center gap-1.5">
-                ✨ {isRtl ? 'סיכום AI' : 'AI Summary'}
-              </p>
-              <p className="text-sm text-[#F9FAFB] leading-7">{scan.aiSummary}</p>
-            </motion.div>
-          )}
-
           {/* ── Export History ──────────────────────────────────────────────── */}
           {exportHistory.length > 0 && (
             <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -749,6 +701,54 @@ export default function ReportPage() {
                 ))}
               </div>
             </motion.section>
+          )}
+
+          {/* ── Core Web Vitals ─────────────────────────────────────────────── */}
+          {hasCWV && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-white/10 bg-[#111827]/80 overflow-hidden">
+              <div className="flex items-center justify-between gap-3 p-5 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-yellow-400" />
+                  <h2 className="font-semibold">Core Web Vitals</h2>
+                  <span className="text-xs text-[#A1A1AA]">{isRtl ? '— מדד גוגל' : '— Google benchmark'}</span>
+                </div>
+                {cwv?.psiScore !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-[#A1A1AA]">PageSpeed:</span>
+                    <span className={`text-2xl font-bold ${psiScoreColor(cwv?.psiScore ?? null)}`}>
+                      {cwv?.psiScore}
+                    </span>
+                    <span className="text-xs text-[#A1A1AA]">/100</span>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <CWVCard label="LCP"  display={cwv?.lcpDisplay  ?? null} value={cwv?.lcp  ?? null} metric="lcp"  isRtl={isRtl} />
+                  <CWVCard label="CLS"  display={cwv?.clsDisplay  ?? null} value={cwv?.cls  ?? null} metric="cls"  isRtl={isRtl} />
+                  <CWVCard label="INP"  display={cwv?.inpDisplay  ?? null} value={cwv?.inp  ?? null} metric="inp"  isRtl={isRtl} />
+                  <CWVCard label="TTFB" display={cwv?.ttfbDisplay ?? null} value={cwv?.ttfb ?? null} metric="ttfb" isRtl={isRtl} />
+                </div>
+                <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-[#A1A1AA] space-y-1">
+                  <p>• LCP {isRtl ? '(Largest Contentful Paint) — זמן טעינת האלמנט הגדול. טוב: < 2.5s' : '(Largest Contentful Paint) — load time of largest element. Good: < 2.5s'}</p>
+                  <p>• CLS {isRtl ? '(Cumulative Layout Shift) — קפיצות פריסה. טוב: < 0.1' : '(Cumulative Layout Shift) — visual instability. Good: < 0.1'}</p>
+                  <p>• INP {isRtl ? '(Interaction to Next Paint) — תגובה לקליק. טוב: < 200ms' : '(Interaction to Next Paint) — click response. Good: < 200ms'}</p>
+                  <p>• TTFB {isRtl ? '(Time to First Byte) — תגובת השרת. טוב: < 800ms' : '(Time to First Byte) — server response. Good: < 800ms'}</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── AI Summary ──────────────────────────────────────────────────── */}
+          {scan.aiSummary && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-5">
+              <p className="text-xs font-semibold text-violet-300 mb-2 flex items-center gap-1.5">
+                ✨ {isRtl ? 'סיכום AI' : 'AI Summary'}
+              </p>
+              <p className="text-sm text-[#F9FAFB] leading-7">{scan.aiSummary}</p>
+            </motion.div>
           )}
 
           {/* ── Severity filter bar ─────────────────────────────────────────── */}
