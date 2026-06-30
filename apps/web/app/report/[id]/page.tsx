@@ -378,8 +378,17 @@ export default function ReportPage() {
     const raw: AnalyzerResult[] = (scan.rawResults as AnalyzerResult[] | null) ?? [];
     const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
     const he = lang === 'he';
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(scan.url);
+    const DEV_KEYWORDS = ['https', 'ssl', 'tls', 'hsts', 'not minif', 'unminif', 'minification', 'compress', 'gzip', 'brotli', 'inline script', 'inline <script'];
     const lines: string[] = [];
 
+    if (isLocalhost) {
+      lines.push(he
+        ? '⚠️ סביבת פיתוח (localhost): בעיות HTTPS, מינוף קבצים ודחיסה אינן רלוונטיות לפרודקשן ולא נכללו.'
+        : '⚠️ Development environment (localhost): HTTPS, minification, and compression issues are not relevant to production and have been excluded.'
+      );
+      lines.push('');
+    }
     if (ctx.trim()) {
       lines.push(he ? `מידע על האתר: ${ctx.trim()}` : `Website context: ${ctx.trim()}`);
       lines.push('');
@@ -400,11 +409,17 @@ export default function ReportPage() {
     lines.push('');
 
     for (const result of raw) {
-      if (!result.issues.length) continue;
+      const issues = isLocalhost
+        ? result.issues.filter(i => {
+            const text = `${i.title} ${i.description}`.toLowerCase();
+            return !DEV_KEYWORDS.some(k => text.includes(k));
+          })
+        : result.issues;
+      if (!issues.length) continue;
       const meta = ANALYZER_META[result.analyzer];
       const label = meta ? (he ? meta.labelHe : meta.label) : result.analyzer;
       lines.push(`## ${label} — ${he ? 'ציון' : 'Score'}: ${result.score}/100`);
-      const sorted = [...result.issues].sort((a, b) =>
+      const sorted = [...issues].sort((a, b) =>
         (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9)
       );
       for (const issue of sorted) {

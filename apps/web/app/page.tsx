@@ -131,7 +131,12 @@ export default function HomePage() {
       <footer className="border-t border-violet-500/15 px-6 py-8 text-sm text-[#9b9dc9] sm:px-8 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <p>{dict.footerText}</p>
-          <p>© 2026 Optimizio Performance</p>
+          <div className="flex items-center gap-6">
+            <Link href="/privacy" className="hover:text-[#F9FAFB] transition-colors">
+              {isRtl ? 'מדיניות פרטיות' : 'Privacy Policy'}
+            </Link>
+            <p>© 2026 Optimizio Performance</p>
+          </div>
         </div>
       </footer>
     </main>
