@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, AlertTriangle, CheckCircle2, Info, Zap, Search, Eye, Shield,
   Loader2, ExternalLink, Smartphone, Lock, Code2, FileCode2, Link2, Printer,
-  TrendingUp, ChevronDown, ChevronUp,
+  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Share2, Check,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedLayout } from '@/components/layout/protected-layout';
@@ -214,14 +214,35 @@ export default function ReportPage() {
   const isRtl = locale === 'he';
 
   const [scan, setScan] = useState<Scan | null>(null);
+  const [prevScan, setPrevScan] = useState<Scan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     api.scans.get(id)
-      .then(s => { setScan(s); setIsLoading(false); })
+      .then(async (s) => {
+        setScan(s);
+        // Load scan history to find the previous scan for comparison
+        try {
+          const history = await api.scans.listByProject(s.projectId);
+          const currentIndex = history.findIndex(h => h.id === s.id);
+          if (currentIndex !== -1 && currentIndex < history.length - 1) {
+            setPrevScan(history[currentIndex + 1]); // list is newest-first
+          }
+        } catch { /* comparison is optional */ }
+        setIsLoading(false);
+      })
       .catch(() => { setIsLoading(false); router.push('/dashboard'); });
   }, [id, router]);
+
+  function handleShare() {
+    const url = `${window.location.origin}/share/${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   if (isLoading) return (
     <ProtectedLayout>
@@ -279,12 +300,24 @@ export default function ReportPage() {
               <ArrowLeft className="h-4 w-4" />
               {isRtl ? 'חזרה לדשבורד' : 'Back to dashboard'}
             </Link>
-            <button
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-[#A1A1AA] hover:bg-white/10 transition-colors">
-              <Printer className="h-3.5 w-3.5" />
-              {isRtl ? 'ייצוא PDF' : 'Export PDF'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShare}
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs transition-colors ${
+                  copied
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                    : 'border-white/10 bg-white/5 text-[#A1A1AA] hover:bg-white/10'
+                }`}>
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+                {copied ? (isRtl ? 'הועתק!' : 'Copied!') : (isRtl ? 'שיתוף' : 'Share')}
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-[#A1A1AA] hover:bg-white/10 transition-colors">
+                <Printer className="h-3.5 w-3.5" />
+                {isRtl ? 'ייצוא PDF' : 'Export PDF'}
+              </button>
+            </div>
           </div>
 
           {/* ── Header card ─────────────────────────────────────────────────── */}
@@ -338,6 +371,22 @@ export default function ReportPage() {
                   {isRtl ? 'האתר נקי לחלוטין!' : 'No issues found!'}
                 </div>
               )}
+              {/* Previous scan comparison */}
+              {prevScan && scan.overallScore !== null && prevScan.overallScore !== null && (() => {
+                const diff = (scan.overallScore ?? 0) - (prevScan.overallScore ?? 0);
+                return (
+                  <div className={`flex items-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-medium ${
+                    diff > 0 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                    : diff < 0 ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                    : 'border-white/10 bg-white/5 text-[#A1A1AA]'
+                  }`}>
+                    {diff > 0 ? <TrendingUp className="h-3 w-3" />
+                      : diff < 0 ? <TrendingDown className="h-3 w-3" />
+                      : <Minus className="h-3 w-3" />}
+                    {diff > 0 ? `+${diff}` : diff} {isRtl ? 'מהסריקה הקודמת' : 'vs prev scan'}
+                  </div>
+                );
+              })()}
             </div>
           </motion.div>
 

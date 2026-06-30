@@ -149,6 +149,9 @@ export const api = {
     create: (body: { projectId: string; url: string; locale?: string }) =>
       request<Scan>('/scans', { method: 'POST', body: JSON.stringify(body) }),
     get: (id: string) => request<Scan>(`/scans/${id}`),
+    getPublic: (id: string) =>
+      fetch(`${API_BASE_URL}/scans/public/${id}`)
+        .then(r => r.ok ? r.json() : Promise.reject(r)) as Promise<Scan>,
     listByProject: (projectId: string) => request<Scan[]>(`/scans/project/${projectId}`),
   },
 };
