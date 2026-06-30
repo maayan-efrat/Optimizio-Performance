@@ -4,6 +4,10 @@ import { PrismaClient } from '@prisma/client';
 import { SCAN_QUEUE, ScanJobData } from './scan.queue';
 import { ScanEngineService } from '../integrations/scan-engine.service';
 
+function pickScore(results: any[], name: string): number {
+  return results.find((r: any) => r.analyzer === name)?.score ?? 0;
+}
+
 @Processor(SCAN_QUEUE)
 export class ScanProcessor extends WorkerHost {
   private prisma = new PrismaClient();
@@ -15,26 +19,34 @@ export class ScanProcessor extends WorkerHost {
     try {
       await job.updateProgress(10);
 
-      const auditResult = await this.scanEngine.runFullAudit(url, locale ?? 'en');
+      const audit = await this.scanEngine.runFullAudit(url, locale ?? 'en');
       await job.updateProgress(80);
 
-      const perf = auditResult.results.find((r) => r.analyzer === 'performance');
-      const seo = auditResult.results.find((r) => r.analyzer === 'seo');
-      const a11y = auditResult.results.find((r) => r.analyzer === 'accessibility');
-      const sec = auditResult.results.find((r) => r.analyzer === 'security');
-
+      const r = audit.results;
       await this.prisma.scan.update({
         where: { id: scanId },
         data: {
-          status: 'completed',
-          progressPercent: 100,
-          overallScore: auditResult.overallScore,
-          performanceScore: perf?.score ?? 0,
-          seoScore: seo?.score ?? 0,
-          accessibilityScore: a11y?.score ?? 0,
-          securityScore: sec?.score ?? 0,
-          aiSummary: auditResult.aiSummary,
-          priorityRoadmap: auditResult.priorityRoadmap,
+          status:             'completed',
+          progressPercent:    100,
+          overallScore:       audit.overallScore,
+          performanceScore:   pickScore(r, 'performance'),
+          seoScore:           pickScore(r, 'seo'),
+          accessibilityScore: pickScore(r, 'accessibility'),
+          securityScore:      pickScore(r, 'security'),
+          mobileScore:        pickScore(r, 'mobile'),
+          privacyScore:       pickScore(r, 'privacy'),
+          schemaScore:        pickScore(r, 'schema'),
+          jsCssScore:         pickScore(r, 'javascript-css'),
+          linksScore:         pickScore(r, 'links'),
+          aiSummary:          audit.aiSummary,
+          priorityRoadmap:    audit.priorityRoadmap as any,
+          rawResults:         audit.results as any,
+          cwvLcp:             audit.cwv.lcp,
+          cwvCls:             audit.cwv.cls,
+          cwvInp:             audit.cwv.inp,
+          cwvTtfb:            audit.cwv.ttfb,
+          cwvPsiScore:        audit.cwv.psiScore,
+          cwvData:            audit.cwv as any,
         },
       });
 

@@ -43,6 +43,19 @@ export interface AnalyzerResult {
   analyzer: string;
   score: number;
   issues: AnalyzerIssue[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface CWVData {
+  lcp: number | null;
+  cls: number | null;
+  inp: number | null;
+  ttfb: number | null;
+  psiScore: number | null;
+  lcpDisplay: string | null;
+  clsDisplay: string | null;
+  inpDisplay: string | null;
+  ttfbDisplay: string | null;
 }
 
 export interface Scan {
@@ -56,9 +69,20 @@ export interface Scan {
   seoScore: number | null;
   accessibilityScore: number | null;
   securityScore: number | null;
+  mobileScore: number | null;
+  privacyScore: number | null;
+  schemaScore: number | null;
+  jsCssScore: number | null;
+  linksScore: number | null;
   aiSummary: string | null;
   priorityRoadmap: RoadmapItem[] | null;
   rawResults: AnalyzerResult[] | null;
+  cwvLcp: number | null;
+  cwvCls: number | null;
+  cwvInp: number | null;
+  cwvTtfb: number | null;
+  cwvPsiScore: number | null;
+  cwvData: CWVData | null;
   createdAt: string;
 }
 
