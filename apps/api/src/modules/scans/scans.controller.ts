@@ -72,6 +72,12 @@ export class ScansController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get(':id/exports')
+  getExports(@Param('id') id: string, @CurrentUser() user: { id: string }) {
+    return this.scansService.getExports(id, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   get(@Param('id') id: string) {
     return this.scansService.get(id);

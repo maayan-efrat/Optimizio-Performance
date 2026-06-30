@@ -168,4 +168,13 @@ export class ScansService {
   async getExportCount(scanId: string): Promise<number> {
     return (this.prisma as any).promptExport.count({ where: { scanId } });
   }
+
+  async getExports(scanId: string, userId: string): Promise<Array<{ id: string; userContext: string; lang: string; createdAt: string }>> {
+    const records = await (this.prisma as any).promptExport.findMany({
+      where: { scanId, userId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, userContext: true, lang: true, createdAt: true },
+    });
+    return records;
+  }
 }

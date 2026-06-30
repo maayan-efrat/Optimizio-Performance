@@ -344,12 +344,14 @@ export default function ReportPage() {
   const [exportLoading, setExportLoading] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<'copy' | 'chatgpt' | 'claude' | null>(null);
   const [exportCount, setExportCount] = useState<number | null>(null);
+  const [exportHistory, setExportHistory] = useState<Array<{ id: string; userContext: string; lang: string; createdAt: string }>>([]);
 
   useEffect(() => {
     api.scans.get(id)
       .then(async (s) => {
         setScan(s);
         api.scans.getExportCount(s.id).then(({ count }) => setExportCount(count)).catch(() => {});
+        api.scans.getExports(s.id).then(list => setExportHistory(list)).catch(() => {});
         // Load scan history to find the previous scan for comparison
         try {
           const history = await api.scans.listByProject(s.projectId);
@@ -438,6 +440,7 @@ export default function ReportPage() {
       await navigator.clipboard.writeText(prompt);
       await refreshCredits();
       setExportCount(newCount);
+      api.scans.getExports(scan.id).then(list => setExportHistory(list)).catch(() => {});
       setExportSuccess(action);
 
       if (action === 'chatgpt') window.open('https://chatgpt.com/', '_blank');
@@ -829,6 +832,55 @@ export default function ReportPage() {
                         {item.codeExample}
                       </pre>
                     )}
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          )}
+
+          {/* ── Export History ──────────────────────────────────────────────── */}
+          {exportHistory.length > 0 && (
+            <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-white/10 bg-[#111827]/80 overflow-hidden no-print">
+              <div className="flex items-center gap-3 p-5 border-b border-white/10">
+                <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-2">
+                  <Bot className="h-4 w-4 text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-[#F9FAFB]">
+                    {isRtl ? 'היסטוריית ייצוא לAI' : 'AI Export History'}
+                  </h2>
+                  <p className="text-xs text-[#A1A1AA]">
+                    {isRtl ? `${exportHistory.length} ייצואים` : `${exportHistory.length} exports`}
+                  </p>
+                </div>
+              </div>
+              <div className="divide-y divide-white/5">
+                {exportHistory.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 px-5 py-4">
+                    <div className="shrink-0 mt-0.5">
+                      <span className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        item.lang === 'he'
+                          ? 'border-violet-500/30 bg-violet-500/10 text-violet-300'
+                          : 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                      }`}>
+                        {item.lang === 'he' ? 'עב׳' : 'EN'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {item.userContext ? (
+                        <p className="text-sm text-[#F9FAFB] truncate">{item.userContext}</p>
+                      ) : (
+                        <p className="text-sm text-[#64748B] italic">
+                          {isRtl ? 'ללא הקשר' : 'No context added'}
+                        </p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-xs text-[#64748B] whitespace-nowrap">
+                      {new Date(item.createdAt).toLocaleDateString(isRtl ? 'he-IL' : 'en-US', {
+                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
                   </div>
                 ))}
               </div>

@@ -191,5 +191,7 @@ export const api = {
       }),
     getExportCount: (scanId: string) =>
       request<{ count: number }>(`/scans/${scanId}/export-count`),
+    getExports: (scanId: string) =>
+      request<Array<{ id: string; userContext: string; lang: string; createdAt: string }>>(`/scans/${scanId}/exports`),
   },
 };
