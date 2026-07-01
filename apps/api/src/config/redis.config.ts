@@ -1,4 +1,5 @@
-import { ConnectionOptions } from 'bullmq';
+import type { ConnectionOptions } from 'bullmq';
+import type { RedisOptions } from 'ioredis';
 
 /**
  * Parses REDIS_URL (Upstash format: rediss://... or redis://...)
@@ -20,16 +21,16 @@ export function getRedisConnection(): ConnectionOptions | null {
   try {
     const parsed = new URL(url);
     const tls = parsed.protocol === 'rediss:';
-    const config = {
+    const config: RedisOptions = {
       host: parsed.hostname,
       port: parseInt(parsed.port || (tls ? '6380' : '6379'), 10),
       username: parsed.username || undefined,
       password: parsed.password || undefined,
       tls: tls ? { rejectUnauthorized: false } : undefined,
       maxRetriesPerRequest: null,
-    } as ConnectionOptions;
+    };
     console.log(`[Redis] Connecting to ${config.host}:${config.port} (tls=${tls})`);
-    return config;
+    return config as ConnectionOptions;
   } catch {
     console.warn('[Redis] Invalid REDIS_URL — queue disabled, falling back to sync processing');
     return null;
