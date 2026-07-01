@@ -24,10 +24,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   },
-  webpack(config) {
-    config.node = { __dirname: true, __filename: true };
-    return config;
-  },
 };
 
 export default nextConfig;
