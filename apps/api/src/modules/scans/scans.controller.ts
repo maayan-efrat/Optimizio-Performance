@@ -59,10 +59,12 @@ export class ScansController {
   @Post(':id/export-prompt')
   saveExport(
     @Param('id') id: string,
-    @Body() body: { userContext?: string; lang?: string },
+    @Body() body: { userContext?: string; lang?: string; scoreAtExport?: number | null; promptText?: string },
     @CurrentUser() user: { id: string },
   ) {
-    return this.scansService.saveExport(id, user.id, body.userContext ?? '', body.lang ?? 'he');
+    return this.scansService.saveExport(
+      id, user.id, body.userContext ?? '', body.lang ?? 'he', body.scoreAtExport, body.promptText,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

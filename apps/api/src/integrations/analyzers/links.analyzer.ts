@@ -38,12 +38,18 @@ export class LinksAnalyzer extends BaseAnalyzer {
     }
 
     // ── Extract links ─────────────────────────────────────────────────────────
+    // Skip non-navigable resource extensions and Next.js static paths.
+    const SKIP_EXT = /\.(woff2?|ttf|otf|eot|png|jpe?g|gif|svg|webp|avif|ico|mp4|mp3|pdf|zip|css|js|map)$/i;
     const hrefMatches = [...html.matchAll(/href=["']([^"'#?][^"']*?)["']/gi)];
     const allResolved = hrefMatches
       .map(m => {
         try {
-          const resolved = new URL(m[1], data.url);
+          const raw = m[1];
+          // Skip internal static asset paths — not navigable pages
+          if (raw.startsWith('/_next/') || SKIP_EXT.test(raw.split('?')[0])) return null;
+          const resolved = new URL(raw, data.url);
           if (!resolved.protocol.startsWith('http')) return null;
+          if (SKIP_EXT.test(resolved.pathname)) return null;
           return { href: resolved.href, isInternal: resolved.origin === origin };
         } catch { return null; }
       })
@@ -135,6 +141,46 @@ export class LinksAnalyzer extends BaseAnalyzer {
         recommendation: 'Verify these pages are online and accessible to crawlers.',
         estimatedImpact: '+3 points',
         affectedUrls: errored.map(r => r.url),
+      });
+    }
+
+    // ── target=_blank without rel="noopener noreferrer" ──────────────────────
+    const blankLinks = [...html.matchAll(/<a[^>]+target=["']_blank["'][^>]*>/gi)];
+    const unsafeBlank = blankLinks.filter(m => {
+      const tag = m[0];
+      return !tag.includes('noopener') && !tag.includes('noreferrer');
+    });
+    if (unsafeBlank.length > 0) {
+      issues.push({
+        title: `${unsafeBlank.length} link(s) with target="_blank" but no rel="noopener"`,
+        severity: 'medium',
+        description: `${unsafeBlank.length} links open in a new tab without rel="noopener noreferrer".`,
+        whyItMatters: 'Links with target="_blank" allow the opened page to access your window object via window.opener — enabling "tab-napping" phishing attacks where the opened page redirects your tab to a fake login page.',
+        recommendation: 'Add rel="noopener noreferrer" to all target="_blank" links.',
+        codeExample: '<!-- Wrong: -->\n<a href="https://example.com" target="_blank">Visit site</a>\n\n<!-- Right: -->\n<a href="https://example.com" target="_blank" rel="noopener noreferrer">Visit site</a>',
+        estimatedImpact: '+3 points',
+        difficulty: 'easy',
+        fixTime: '15 דקות',
+        details: `${unsafeBlank.length} out of ${blankLinks.length} _blank links are unsafe.`,
+      });
+    }
+
+    // ── Anchor links with non-descriptive text ────────────────────────────────
+    const linkTexts = [...html.matchAll(/<a[^>]+href=["'][^"'#][^"']*["'][^>]*>([\s\S]*?)<\/a>/gi)]
+      .map(m => m[1].replace(/<[^>]+>/g, '').trim().toLowerCase())
+      .filter(t => t.length > 0 && t.length < 30);
+    const genericTexts = ['click here', 'read more', 'here', 'more', 'לחץ כאן', 'קרא עוד', 'פרטים', 'להמשך'];
+    const genericLinks = linkTexts.filter(t => genericTexts.includes(t));
+    if (genericLinks.length > 0) {
+      issues.push({
+        title: `${genericLinks.length} link(s) with non-descriptive anchor text`,
+        severity: 'low',
+        description: `Found ${genericLinks.length} links with generic text like "click here", "read more".`,
+        whyItMatters: 'Descriptive anchor text helps search engines understand what the linked page is about and helps screen reader users navigate links out of context.',
+        recommendation: 'Replace generic text with descriptive text that indicates the destination (e.g. "Read our pricing guide" instead of "click here").',
+        codeExample: '<!-- Wrong: -->\n<a href="/pricing">Click here</a>\n\n<!-- Right: -->\n<a href="/pricing">View our pricing plans</a>',
+        estimatedImpact: '+2 points',
+        details: `Generic texts found: ${[...new Set(genericLinks)].join(', ')}`,
       });
     }
 

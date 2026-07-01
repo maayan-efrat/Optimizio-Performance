@@ -1,23 +1,8 @@
 import type { Metadata } from 'next';
-import { Inter, Heebo } from 'next/font/google';
 import './globals.css';
 import { Navigation } from '@/components/layout/navigation';
 import { AuthProvider } from '@/contexts/auth';
 import { LocaleProvider } from '@/contexts/locale';
-
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const heebo = Heebo({
-  subsets: ['hebrew', 'latin'],
-  weight: ['400', '500', '700', '800'],
-  variable: '--font-heebo',
-  display: 'swap',
-});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://optimizio.co.il';
 
@@ -72,26 +57,40 @@ const jsonLd = {
     '@type': 'Offer',
     priceCurrency: 'ILS',
     price: '0',
-    description: '300 קרדיטים חינם בהצטרפות — 3 סריקות ראשונות חינם',
+    description: '150 קרדיטים חינם בהצטרפות — סריקה ראשונה חינם',
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${inter.variable} ${heebo.variable}`}>
+    <html lang="he" dir="rtl">
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Heebo:wght@400;500;700;800&display=swap"
+          rel="stylesheet"
         />
       </head>
       <body>
+        {/* Skip navigation — first focusable element for keyboard/screen-reader users */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-4 focus:start-4 focus:rounded-xl focus:bg-violet-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg focus:outline-none"
+        >
+          דילוג לתוכן הראשי
+        </a>
         <LocaleProvider>
           <AuthProvider>
             <Navigation />
             {children}
           </AuthProvider>
         </LocaleProvider>
+        {/* JSON-LD — type="application/ld+json" is a data block, not JS, so no nonce needed */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </body>
     </html>
   );

@@ -40,35 +40,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedToken = localStorage.getItem('auth_token');
     const storedUser = localStorage.getItem('auth_user');
-    if (storedToken && storedUser) {
-      const parsed = JSON.parse(storedUser) as User;
-      setToken(storedToken);
-      setUser(parsed);
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-      // Refresh user profile + credits in parallel
-      fetch(`${apiBase}/auth/me`, { headers: { Authorization: `Bearer ${storedToken}` } })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data?.user) {
-            const updated = { ...parsed, ...data.user };
-            localStorage.setItem('auth_user', JSON.stringify(updated));
-            setUser(updated);
-          }
-        })
-        .catch(() => {});
-
-      // Fetch live credits
-      fetch(`${apiBase}/payments/credits`, { headers: { Authorization: `Bearer ${storedToken}` } })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data?.credits !== undefined) {
-            setUser(prev => prev ? { ...prev, credits: data.credits } : prev);
-          }
-        })
-        .catch(() => {});
+    if (!storedToken || !storedUser) {
+      // No stored session — resolve immediately
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
+
+    const parsed = JSON.parse(storedUser) as User;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
+    // Validate the stored token with the server before marking auth as resolved.
+    // This prevents ProtectedLayout from briefly seeing a stale logged-in state.
+    fetch(`${apiBase}/auth/me`, { headers: { Authorization: `Bearer ${storedToken}` } })
+      .then(r => {
+        if (r.status === 401) {
+          // Token expired or revoked — discard the stale session entirely
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+          return null;
+        }
+        if (r.ok) {
+          // Token valid — seed state from localStorage immediately so UI is instant,
+          // then overwrite with fresh server data once the JSON parses
+          setToken(storedToken);
+          setUser(parsed);
+          return r.json();
+        }
+        return null;
+      })
+      .then(data => {
+        if (data?.user) {
+          const updated = { ...parsed, ...data.user };
+          localStorage.setItem('auth_user', JSON.stringify(updated));
+          setUser(updated);
+        }
+      })
+      .catch(() => {
+        // Network error — keep localStorage state so the app works offline-ish
+        setToken(storedToken);
+        setUser(parsed);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+
+    // Fetch live credits in parallel (non-blocking, doesn't affect isLoading)
+    fetch(`${apiBase}/payments/credits`, { headers: { Authorization: `Bearer ${storedToken}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.credits !== undefined) {
+          setUser(prev => prev ? { ...prev, credits: data.credits } : prev);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   function login(newToken: string, newUser: User) {

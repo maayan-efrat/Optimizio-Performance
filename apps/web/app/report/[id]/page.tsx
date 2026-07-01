@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, AlertTriangle, CheckCircle2, Info, Zap, Search, Eye, Shield,
   Loader2, ExternalLink, Smartphone, Lock, Code2, FileCode2, Link2, Printer,
-  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Share2, Check, Bot, X,
+  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Share2, Check, Bot, X, Copy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedLayout } from '@/components/layout/protected-layout';
@@ -213,12 +213,26 @@ function ScoreRing({ score, color, size = 72 }: { score: number; color: string; 
   );
 }
 
+// ── Difficulty helpers ────────────────────────────────────────────────────────
+
+const DIFFICULTY_BADGE: Record<string, string> = {
+  easy:   'bg-emerald-500/15 text-emerald-300 border-emerald-500/25',
+  medium: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/25',
+  hard:   'bg-red-500/15 text-red-300 border-red-500/25',
+};
+const DIFFICULTY_LABEL_HE: Record<string, string> = { easy: 'קל', medium: 'בינוני', hard: 'קשה' };
+const DIFFICULTY_LABEL_EN: Record<string, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+
 // ── Issue card (accordion) ───────────────────────────────────────────────────
 
 function IssueCard({ issue, isRtl }: { issue: AnalyzerIssue; isRtl: boolean }) {
   const [open, setOpen] = useState(false);
   const sevLabel = isRtl ? (SEVERITY_LABEL_HE[issue.severity] ?? issue.severity)
                           : (SEVERITY_LABEL_EN[issue.severity] ?? issue.severity);
+  const diffLabel = issue.difficulty
+    ? (isRtl ? DIFFICULTY_LABEL_HE[issue.difficulty] : DIFFICULTY_LABEL_EN[issue.difficulty])
+    : null;
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden transition-all">
       <button
@@ -231,17 +245,37 @@ function IssueCard({ issue, isRtl }: { issue: AnalyzerIssue; isRtl: boolean }) {
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-[#F9FAFB] leading-5">{issue.title}</p>
-          {issue.estimatedImpact && (
-            <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />{issue.estimatedImpact}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            {issue.estimatedImpact && (
+              <span className="text-xs text-emerald-400 flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />{issue.estimatedImpact}
+              </span>
+            )}
+            {diffLabel && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${DIFFICULTY_BADGE[issue.difficulty!]}`}>
+                {isRtl ? 'קושי:' : 'Effort:'} {diffLabel}
+              </span>
+            )}
+            {issue.fixTime && (
+              <span className="text-[10px] text-[#A1A1AA]">⏱ {issue.fixTime}</span>
+            )}
+          </div>
         </div>
         {open ? <ChevronUp className="h-4 w-4 text-[#A1A1AA] shrink-0 mt-0.5" />
                : <ChevronDown className="h-4 w-4 text-[#A1A1AA] shrink-0 mt-0.5" />}
       </button>
 
       <div className={`px-4 pb-4 space-y-3 border-t border-white/10 pt-3 issue-detail-body${open ? '' : ' issue-detail-body--closed'}`}>
+
+          {issue.businessImpact && (
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3">
+              <p className="text-xs font-semibold text-amber-300 mb-1">
+                {isRtl ? '💼 השפעה על העסק:' : '💼 Business impact:'}
+              </p>
+              <p className="text-xs text-[#F9FAFB] leading-5">{issue.businessImpact}</p>
+            </div>
+          )}
+
           <p className="text-sm text-[#A1A1AA] leading-6">{issue.description}</p>
 
           <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 p-3">
@@ -257,6 +291,17 @@ function IssueCard({ issue, isRtl }: { issue: AnalyzerIssue; isRtl: boolean }) {
             </p>
             <p className="text-xs text-[#A1A1AA] leading-5">{issue.recommendation}</p>
           </div>
+
+          {issue.codeExample && (
+            <div className="rounded-xl bg-[#09090B] border border-white/10 p-3">
+              <p className="text-xs font-semibold text-emerald-400 mb-2">
+                {isRtl ? '💻 דוגמת קוד:' : '💻 Code example:'}
+              </p>
+              <pre className="text-xs text-[#D4D4D8] whitespace-pre-wrap break-all font-mono leading-5 overflow-x-auto">
+                {issue.codeExample}
+              </pre>
+            </div>
+          )}
 
           {issue.affectedUrls && issue.affectedUrls.length > 0 && (
             <div className="rounded-xl bg-[#09090B] border border-white/10 p-3">
@@ -344,7 +389,9 @@ export default function ReportPage() {
   const [exportLoading, setExportLoading] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<'copy' | 'chatgpt' | 'claude' | null>(null);
   const [exportCount, setExportCount] = useState<number | null>(null);
-  const [exportHistory, setExportHistory] = useState<Array<{ id: string; userContext: string; lang: string; createdAt: string }>>([]);
+  const [exportHistory, setExportHistory] = useState<Array<{ id: string; userContext: string; lang: string; createdAt: string; scoreAtExport: number | null; creditsCharged: number; promptText: string | null }>>([]);
+  const [viewPromptText, setViewPromptText] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   useEffect(() => {
     api.scans.get(id)
@@ -450,8 +497,8 @@ export default function ReportPage() {
     if (!scan) return;
     setExportLoading(true);
     try {
-      const { exportCount: newCount } = await api.scans.saveExport(scan.id, exportUserContext, exportLang);
       const prompt = buildExportPrompt(exportUserContext, exportLang);
+      const { exportCount: newCount } = await api.scans.saveExport(scan.id, exportUserContext, exportLang, scan.overallScore, prompt);
       await navigator.clipboard.writeText(prompt);
       await refreshCredits();
       setExportCount(newCount);
@@ -510,6 +557,31 @@ export default function ReportPage() {
     ...r,
     issues: activeFilter === 'all' ? r.issues : r.issues.filter(i => i.severity === activeFilter),
   })).filter(r => r.issues.length > 0);
+
+  // ── Projected Score ──────────────────────────────────────────────────────────
+  function parseImpactPts(impact?: string): number {
+    if (!impact) return 0;
+    const m = impact.match(/\+(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+  const totalPotentialGain = allIssues.reduce((s, i) => s + parseImpactPts(i.estimatedImpact), 0);
+  const projectedScore = Math.min(100, (scan.overallScore ?? 0) + totalPotentialGain);
+  const scoreDelta = projectedScore - (scan.overallScore ?? 0);
+
+  // ── Trust Signals ────────────────────────────────────────────────────────────
+  const secMeta  = (raw.find(r => r.analyzer === 'security')?.metadata  ?? {}) as Record<string, unknown>;
+  const seoMeta  = (raw.find(r => r.analyzer === 'seo')?.metadata       ?? {}) as Record<string, unknown>;
+  const privMeta = (raw.find(r => r.analyzer === 'privacy')?.metadata   ?? {}) as Record<string, unknown>;
+  const perfMeta = (raw.find(r => r.analyzer === 'performance')?.metadata ?? {}) as Record<string, unknown>;
+  const mobileScore = scan.mobileScore ?? 0;
+  const trustSignals = [
+    { labelHe: 'HTTPS מאובטח',     labelEn: 'HTTPS secure',      ok: secMeta.isHttps    as boolean ?? false },
+    { labelHe: 'מדיניות פרטיות',   labelEn: 'Privacy Policy',    ok: privMeta.hasPrivacyPolicy as boolean ?? false },
+    { labelHe: 'WhatsApp',          labelEn: 'WhatsApp',          ok: seoMeta.hasWhatsApp   as boolean ?? false },
+    { labelHe: 'פרטי קשר',          labelEn: 'Contact info',      ok: seoMeta.hasContactInfo as boolean ?? false },
+    { labelHe: 'טעינה מהירה',       labelEn: 'Fast load',         ok: (perfMeta.fetchDurationMs as number ?? 9999) < 1500 },
+    { labelHe: 'מותאם לנייד',       labelEn: 'Mobile-friendly',   ok: mobileScore >= 70 },
+  ];
 
   return (
     <ProtectedLayout>
@@ -653,6 +725,72 @@ export default function ReportPage() {
             </div>
           </motion.div>
 
+          {/* ── Trust Signals ───────────────────────────────────────────────── */}
+          <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-white/10 bg-[#111827]/80 overflow-hidden">
+            <div className="flex items-center justify-between gap-3 p-5 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-emerald-400" />
+                <h2 className="font-semibold text-[#F9FAFB]">
+                  {isRtl ? 'אמינות האתר' : 'Trust Signals'}
+                </h2>
+              </div>
+              <span className="text-xs text-[#A1A1AA]">
+                {trustSignals.filter(s => s.ok).length}/{trustSignals.length} {isRtl ? 'עוברים' : 'passing'}
+              </span>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {trustSignals.map((s) => (
+                <div key={s.labelEn} className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
+                  s.ok ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'
+                }`}>
+                  <span className={`text-base ${s.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {s.ok ? '✓' : '✗'}
+                  </span>
+                  <span className="text-xs font-medium text-[#F9FAFB]">
+                    {isRtl ? s.labelHe : s.labelEn}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+
+          {/* ── Projected Score ──────────────────────────────────────────────── */}
+          {scoreDelta > 0 && (
+            <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 overflow-hidden no-print">
+              <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-5 w-5 text-cyan-400 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-[#F9FAFB] text-sm">
+                      {isRtl ? 'ציון משוער לאחר תיקון כל הבעיות' : 'Projected score after fixing all issues'}
+                    </p>
+                    <p className="text-xs text-[#A1A1AA] mt-0.5">
+                      {isRtl
+                        ? `מבוסס על השפעות משוערות של ${totalIssues} בעיות`
+                        : `Based on estimated impact of ${totalIssues} issues`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 sm:ms-auto shrink-0">
+                  <div className="text-center">
+                    <p className="text-xs text-[#A1A1AA]">{isRtl ? 'נוכחי' : 'Current'}</p>
+                    <p className="text-2xl font-bold text-[#F9FAFB]">{scan.overallScore}</p>
+                  </div>
+                  <div className="text-[#A1A1AA] text-lg">→</div>
+                  <div className="text-center">
+                    <p className="text-xs text-[#A1A1AA]">{isRtl ? 'משוער' : 'Projected'}</p>
+                    <p className="text-2xl font-bold text-cyan-400">{projectedScore}</p>
+                  </div>
+                  <span className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm font-bold text-emerald-400">
+                    +{scoreDelta}
+                  </span>
+                </div>
+              </div>
+            </motion.section>
+          )}
+
           {/* ── Export History ──────────────────────────────────────────────── */}
           {exportHistory.length > 0 && (
             <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -672,7 +810,7 @@ export default function ReportPage() {
               </div>
               <div className="divide-y divide-white/5">
                 {exportHistory.map((item, idx) => (
-                  <div key={item.id} className="flex items-center gap-3 px-5 py-3.5">
+                  <div key={item.id} className="flex items-center gap-3 px-5 py-3.5 flex-wrap">
                     <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-white/5 text-[11px] font-bold text-[#A1A1AA]">
                       {exportHistory.length - idx}
                     </span>
@@ -683,6 +821,14 @@ export default function ReportPage() {
                     }`}>
                       {item.lang === 'he' ? 'עברית' : 'English'}
                     </span>
+                    {item.scoreAtExport != null && (
+                      <span className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-[#A1A1AA]">
+                        {isRtl ? `ציון: ${item.scoreAtExport}` : `Score: ${item.scoreAtExport}`}
+                      </span>
+                    )}
+                    <span className="shrink-0 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                      -{item.creditsCharged ?? 200} {isRtl ? 'קרדיטים' : 'credits'}
+                    </span>
                     <div className="flex-1 min-w-0">
                       {item.userContext ? (
                         <p className="text-sm text-[#F9FAFB] truncate">{item.userContext}</p>
@@ -692,15 +838,60 @@ export default function ReportPage() {
                         </p>
                       )}
                     </div>
-                    <span className="shrink-0 text-xs text-[#64748B] whitespace-nowrap">
-                      {new Date(item.createdAt).toLocaleDateString(isRtl ? 'he-IL' : 'en-US', {
-                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                      })}
-                    </span>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {item.promptText && (
+                        <button
+                          onClick={() => setViewPromptText(item.promptText)}
+                          className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors"
+                        >
+                          {isRtl ? 'צפה בפרומפט' : 'View prompt'}
+                        </button>
+                      )}
+                      <span className="text-xs text-[#64748B] whitespace-nowrap">
+                        {new Date(item.createdAt).toLocaleDateString(isRtl ? 'he-IL' : 'en-US', {
+                          day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
             </motion.section>
+          )}
+
+          {/* ── View Prompt Modal ────────────────────────────────────────────── */}
+          {viewPromptText && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print" onClick={() => setViewPromptText(null)}>
+              <div className="relative w-full max-w-3xl max-h-[80vh] flex flex-col rounded-2xl border border-violet-500/20 bg-[#0D1117] shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between gap-3 p-5 border-b border-white/10 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-violet-400" />
+                    <h3 className="font-semibold text-[#F9FAFB]">{isRtl ? 'הפרומפט המלא' : 'Full Prompt'}</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(viewPromptText!);
+                        setPromptCopied(true);
+                        setTimeout(() => setPromptCopied(false), 2000);
+                      }}
+                      className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                        promptCopied
+                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                          : 'border-white/10 bg-white/5 text-[#A1A1AA] hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {promptCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      {promptCopied ? (isRtl ? 'הועתק!' : 'Copied!') : (isRtl ? 'העתק' : 'Copy')}
+                    </button>
+                    <button onClick={() => setViewPromptText(null)} className="rounded-lg p-1.5 text-[#A1A1AA] hover:text-white hover:bg-white/10 transition-colors">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <pre className="flex-1 overflow-auto p-5 text-xs text-[#A1A1AA] whitespace-pre-wrap font-mono leading-relaxed">{viewPromptText}</pre>
+              </div>
+            </div>
           )}
 
           {/* ── Core Web Vitals ─────────────────────────────────────────────── */}

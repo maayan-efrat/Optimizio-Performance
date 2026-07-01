@@ -3,12 +3,27 @@ import { BaseAnalyzer, AnalyzerResult, WebsiteData, AnalyzerIssue } from './base
 const PHONE_RE = /(\+972|05\d|0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}|\(\d{3}\)\s?\d{3}[-\s]\d{4}|\d{3}[-\s]\d{3}[-\s]\d{4})/;
 const ADDRESS_RE = /(\d{1,5}\s+\w[\w\s]{3,40}(?:street|st\.?|avenue|ave\.?|road|rd\.?|boulevard|blvd\.?|רחוב|שדרות|כביש))/i;
 
+function isAppPage(url: string): boolean {
+  const appPaths = [
+    '/login', '/register', '/dashboard', '/admin', '/scan', '/report/',
+    '/onboarding', '/settings', '/reset-password', '/forgot-password',
+    '/payment/', '/scan-details', '/competitor-analysis', '/share/',
+    '/reports', '/api/',
+  ];
+  try {
+    const pathname = new URL(url).pathname;
+    return appPaths.some(p => pathname === p || pathname.startsWith(p));
+  } catch { return false; }
+}
+
 export class SEOAnalyzer extends BaseAnalyzer {
   name = 'seo';
 
   async analyze(data: WebsiteData): Promise<AnalyzerResult> {
     const issues: AnalyzerIssue[] = [];
     const html = data.html || '';
+    const appPage = isAppPage(data.url);
+    const isDev = data.isDevelopment ?? false;
 
     // ── Title tag ────────────────────────────────────────────────────────────
     const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
@@ -20,8 +35,11 @@ export class SEOAnalyzer extends BaseAnalyzer {
         description: 'No <title> tag found in the page.',
         whyItMatters: 'The title tag is the most important on-page SEO element. Google shows it as the clickable headline in search results.',
         recommendation: 'Add a unique, descriptive <title> (50-60 characters) to every page.',
+        codeExample: '<title>Your Business Name — Main Keyword | City</title>',
         estimatedImpact: '+15 points',
-        details: 'Google shows the title in search results — missing it severely hurts CTR.',
+        businessImpact: 'לקוחות לא ימצאו את האתר שלכם בגוגל — הכותרת היא הדבר הראשון שגוגל בודק.',
+        difficulty: 'easy',
+        fixTime: '10 דקות',
       });
     } else if (title.length < 20) {
       issues.push({
@@ -30,7 +48,11 @@ export class SEOAnalyzer extends BaseAnalyzer {
         description: 'Page title is under 20 characters — too brief to describe the page content.',
         whyItMatters: 'Short titles miss keyword opportunities and look weak in search results.',
         recommendation: 'Expand the title to 50-60 characters with the main keyword.',
+        codeExample: `<title>${title} — [Main Keyword] | [Business Name]</title>`,
         estimatedImpact: '+5 points',
+        businessImpact: 'פחות קליקים מגוגל — כותרת קצרה לא מספרת ללקוח מה הוא מוצא.',
+        difficulty: 'easy',
+        fixTime: '10 דקות',
         details: `Current: "${title}" (${title.length} chars). Target: 50-60 chars.`,
       });
     } else if (title.length > 65) {
@@ -41,7 +63,25 @@ export class SEOAnalyzer extends BaseAnalyzer {
         whyItMatters: 'Truncated titles reduce click-through rates.',
         recommendation: 'Shorten the title to 50-60 characters while keeping the main keyword.',
         estimatedImpact: '+2 points',
+        difficulty: 'easy',
+        fixTime: '5 דקות',
         details: `Current: "${title}" — ${title.length} chars. Google shows ~60 chars.`,
+      });
+    }
+
+    // ── Title = H1 duplicate ──────────────────────────────────────────────────
+    const h1Tags = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/gi) || [];
+    const h1Texts = h1Tags.map(h => h.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+    if (title && h1Texts.length === 1 && title.toLowerCase() === h1Texts[0].toLowerCase()) {
+      issues.push({
+        title: 'Title and H1 are identical',
+        severity: 'low',
+        description: `Your <title> and <h1> contain exactly the same text: "${title}".`,
+        whyItMatters: 'Identical title and H1 miss the opportunity to target additional keyword variations and make the page feel repetitive.',
+        recommendation: 'Keep the same topic but vary the wording. The title can be shorter and keyword-focused; the H1 can be more descriptive for readers.',
+        estimatedImpact: '+2 points',
+        difficulty: 'easy',
+        fixTime: '10 דקות',
       });
     }
 
@@ -56,7 +96,11 @@ export class SEOAnalyzer extends BaseAnalyzer {
         description: 'No <meta name="description"> found.',
         whyItMatters: 'Google shows the meta description in search snippets — it directly affects CTR.',
         recommendation: 'Add a unique meta description between 120-160 characters for every page.',
+        codeExample: '<meta name="description" content="[Your compelling 120-160 char description with main keyword]">',
         estimatedImpact: '+8 points',
+        businessImpact: 'גוגל בוחר טקסט אקראי מהדף — לקוחות פוטנציאליים רואים תוכן לא קשור ולא לוחצים.',
+        difficulty: 'easy',
+        fixTime: '15 דקות',
         details: 'Without a description, Google picks random text from the page, often poorly.',
       });
     } else if (metaDesc.length < 60) {
@@ -82,8 +126,6 @@ export class SEOAnalyzer extends BaseAnalyzer {
     }
 
     // ── H1 tags ───────────────────────────────────────────────────────────────
-    const h1Tags = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/gi) || [];
-    const h1Texts = h1Tags.map(h => h.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
     if (h1Tags.length === 0) {
       issues.push({
         title: 'No H1 tag found',
@@ -91,6 +133,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
         description: 'The page has no <h1> heading.',
         whyItMatters: 'H1 is the primary signal for search engines about the page topic.',
         recommendation: 'Add exactly one <h1> tag that includes your main keyword.',
+        codeExample: '<h1>Main Keyword — Compelling Description</h1>',
         estimatedImpact: '+8 points',
       });
     } else if (h1Tags.length > 1) {
@@ -146,6 +189,93 @@ export class SEOAnalyzer extends BaseAnalyzer {
       });
     }
 
+    // ── X-Robots-Tag header ───────────────────────────────────────────────────
+    const xRobotsTag = (data.responseHeaders?.['x-robots-tag'] || '').toLowerCase();
+    if (xRobotsTag.includes('noindex')) {
+      issues.push({
+        title: 'X-Robots-Tag header set to noindex — hidden from Google',
+        severity: 'critical',
+        description: `The server sends X-Robots-Tag: ${xRobotsTag} — this hides the page from search engines.`,
+        whyItMatters: 'X-Robots-Tag overrides HTML robots meta. A noindex here means the page never appears in search results, even if the HTML tag says otherwise.',
+        recommendation: 'Check your server configuration and remove the noindex directive from X-Robots-Tag.',
+        estimatedImpact: '+30 points',
+        details: `X-Robots-Tag: ${xRobotsTag}`,
+      });
+    }
+
+    // ── Meta refresh redirect ─────────────────────────────────────────────────
+    const metaRefreshMatch = html.match(/<meta[^>]+http-equiv=["']refresh["'][^>]+content=["'](\d+)/i);
+    if (metaRefreshMatch) {
+      const delay = parseInt(metaRefreshMatch[1], 10);
+      issues.push({
+        title: `Meta refresh redirect detected (${delay}s delay)`,
+        severity: delay === 0 ? 'high' : 'medium',
+        description: `<meta http-equiv="refresh"> redirects the page after ${delay} seconds.`,
+        whyItMatters: 'Meta refresh redirects are bad for SEO — Google may not follow them, and they create a poor user experience with an unnecessary delay.',
+        recommendation: 'Replace with a proper 301 server-side redirect (via .htaccess, nginx, or your framework).',
+        codeExample: '# In .htaccess:\nRedirect 301 /old-page https://yoursite.com/new-page',
+        estimatedImpact: '+5 points',
+        difficulty: 'medium',
+        fixTime: '30 דקות',
+      });
+    }
+
+    // ── URL structure checks ──────────────────────────────────────────────────
+    try {
+      const parsedUrl = new URL(data.url);
+      const pathname = parsedUrl.pathname;
+
+      if (data.url.length > 115) {
+        issues.push({
+          title: `URL too long (${data.url.length} chars)`,
+          severity: 'low',
+          description: `Current URL: ${data.url}`,
+          whyItMatters: 'Long URLs are hard to share, look untrustworthy, and may be truncated in search results.',
+          recommendation: 'Keep URLs under 115 characters. Use short, descriptive slugs.',
+          estimatedImpact: '+2 points',
+        });
+      }
+
+      if (pathname.includes('_') && !pathname.startsWith('/_next/')) {
+        issues.push({
+          title: 'URL contains underscores instead of hyphens',
+          severity: 'low',
+          description: `URL path uses underscores: ${pathname}`,
+          whyItMatters: 'Google treats underscores as part of a word (e.g. "web_page" = one word), while hyphens separate words. Hyphenated URLs rank better for multi-word keywords.',
+          recommendation: 'Replace underscores with hyphens in URL slugs (e.g. /my-page instead of /my_page).',
+          estimatedImpact: '+2 points',
+          difficulty: 'medium',
+          fixTime: '30 דקות',
+        });
+      }
+
+      if (pathname.includes('%20')) {
+        issues.push({
+          title: 'URL contains encoded spaces (%20)',
+          severity: 'low',
+          description: `URL path contains %20: ${pathname}`,
+          whyItMatters: 'Encoded spaces look unprofessional, break when shared, and are a signal of poor URL structure.',
+          recommendation: 'Replace spaces with hyphens in URL slugs and set up 301 redirects from old URLs.',
+          estimatedImpact: '+2 points',
+          difficulty: 'medium',
+          fixTime: '30 דקות',
+        });
+      }
+
+      if (pathname !== pathname.toLowerCase()) {
+        issues.push({
+          title: 'URL contains uppercase letters',
+          severity: 'low',
+          description: `URL path has mixed case: ${pathname}`,
+          whyItMatters: 'Mixed-case URLs can create duplicate content issues — /Page and /page are treated as different URLs by some servers.',
+          recommendation: 'Use lowercase URLs only and redirect uppercase versions with 301s.',
+          estimatedImpact: '+2 points',
+          difficulty: 'easy',
+          fixTime: '15 דקות',
+        });
+      }
+    } catch {}
+
     // ── Images without alt text ───────────────────────────────────────────────
     const images = data.fetchedImages || [];
     const noAlt = images.filter((img) => !img.hasAlt);
@@ -156,6 +286,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
         description: `${noAlt.length} of ${images.length} images have no alt attribute.`,
         whyItMatters: 'Alt text helps search engines index images and ranks in Google Images.',
         recommendation: 'Add descriptive alt text to every <img> tag.',
+        codeExample: '<img src="product.jpg" alt="[descriptive text about the image]" width="800" height="600">',
         estimatedImpact: '+5 points',
         resourceUrl: noAlt[0]?.src,
         affectedUrls: noAlt.slice(0, 10).map(i => i.src),
@@ -164,50 +295,92 @@ export class SEOAnalyzer extends BaseAnalyzer {
     }
 
     // ── Canonical tag ─────────────────────────────────────────────────────────
-    if (!html.includes('rel="canonical"') && !html.includes("rel='canonical'")) {
+    const hasCanonical = html.includes('rel="canonical"') || html.includes("rel='canonical'");
+    if (!isDev && !hasCanonical) {
       issues.push({
         title: 'Missing canonical tag',
         severity: 'medium',
         description: 'No <link rel="canonical"> found.',
         whyItMatters: 'Without canonical, Google may index duplicate URLs and split ranking signals.',
         recommendation: `Add: <link rel="canonical" href="${data.url}">`,
+        codeExample: `<link rel="canonical" href="${data.url}">`,
         estimatedImpact: '+3 points',
       });
+    }
+
+    // Canonical URL checks (always run — these detect real misconfigurations)
+    const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i)
+      ?? html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
+    const canonicalUrl = canonicalMatch?.[1]?.trim() ?? null;
+
+    const ogUrlMatch = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i)
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:url["']/i);
+    const ogUrl = ogUrlMatch?.[1]?.trim() ?? null;
+
+    if (ogUrl && canonicalUrl && ogUrl !== canonicalUrl) {
+      issues.push({
+        title: 'og:url and canonical URL mismatch',
+        severity: 'medium',
+        description: `og:url: "${ogUrl}" ≠ canonical: "${canonicalUrl}"`,
+        whyItMatters: 'Mismatched canonical and og:url confuse search engines and social crawlers about the authoritative URL.',
+        recommendation: 'Ensure og:url and canonical both point to the same canonical version of the page.',
+        estimatedImpact: '+2 points',
+        details: `og:url: ${ogUrl}\ncanonical: ${canonicalUrl}`,
+      });
+    }
+
+    if (canonicalUrl) {
+      try {
+        if (!canonicalUrl.startsWith('/') && !canonicalUrl.includes(new URL(data.url).hostname)) {
+          issues.push({
+            title: 'Canonical URL points to a different domain',
+            severity: 'high',
+            description: `Canonical href="${canonicalUrl}" points to a different domain than the current page.`,
+            whyItMatters: 'A cross-domain canonical tells Google to index a different domain instead — this page will be excluded from search results.',
+            recommendation: 'Verify the canonical URL is correct. If this page should be indexed, change the canonical to match the current URL.',
+            estimatedImpact: '+10 points',
+            details: `Page domain: ${new URL(data.url).hostname}\nCanonical: ${canonicalUrl}`,
+          });
+        }
+      } catch {}
     }
 
     // ── Open Graph tags ───────────────────────────────────────────────────────
     const hasOgTitle = html.includes('og:title');
     const hasOgDesc  = html.includes('og:description');
     const hasOgImage = html.includes('og:image');
-    if (!hasOgTitle) {
+    if (!isDev && !hasOgTitle) {
       issues.push({
         title: 'Missing Open Graph meta tags',
         severity: 'low',
         description: 'No og:title / og:description / og:image tags found.',
         whyItMatters: 'Without OG tags, social media shares show poor previews reducing clicks.',
         recommendation: 'Add og:title, og:description, og:image, og:url and og:type.',
+        codeExample: '<meta property="og:title" content="[Page Title]">\n<meta property="og:description" content="[Description]">\n<meta property="og:image" content="https://yoursite.com/og-image.jpg">\n<meta property="og:url" content="[Page URL]">',
         estimatedImpact: '+2 points',
         details: `Missing: ${[!hasOgTitle && 'og:title', !hasOgDesc && 'og:description', !hasOgImage && 'og:image'].filter(Boolean).join(', ')}`,
       });
-    } else if (!hasOgImage) {
+    } else if (!isDev && hasOgTitle && !hasOgImage) {
       issues.push({
         title: 'Missing og:image — social previews have no thumbnail',
         severity: 'low',
         description: 'og:title and og:description are present but og:image is missing.',
         whyItMatters: 'Social posts without an image get far less engagement.',
         recommendation: 'Add <meta property="og:image" content="https://yoursite.com/social-preview.jpg">. Recommended size: 1200×630px.',
+        codeExample: '<meta property="og:image" content="https://yoursite.com/og-image.jpg">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">',
         estimatedImpact: '+2 points',
       });
     }
 
     // ── Twitter Card ──────────────────────────────────────────────────────────
-    if (!html.includes('twitter:card')) {
+    if (!isDev && !html.includes('twitter:card')) {
       issues.push({
         title: 'Missing Twitter Card meta tags',
         severity: 'low',
         description: 'No twitter:card meta tag found.',
         whyItMatters: 'Without Twitter Cards, shared links on X/Twitter show plain text only.',
         recommendation: 'Add: <meta name="twitter:card" content="summary_large_image"> plus twitter:title, twitter:description, twitter:image.',
+        codeExample: '<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="[Title]">\n<meta name="twitter:description" content="[Description]">',
         estimatedImpact: '+1 point',
       });
     }
@@ -215,15 +388,15 @@ export class SEOAnalyzer extends BaseAnalyzer {
     // ── Hreflang ──────────────────────────────────────────────────────────────
     const hasHreflang = html.includes('hreflang');
     const isMultilingual = html.includes('lang="he"') || html.includes('lang="en"') || html.includes('/he/') || html.includes('/en/');
-    if (isMultilingual && !hasHreflang) {
+    if (!isDev && isMultilingual && !hasHreflang) {
       issues.push({
         title: 'Multilingual site without hreflang tags',
         severity: 'medium',
         description: 'Site appears to have multiple languages but no hreflang annotations.',
         whyItMatters: 'Without hreflang, Google may show the wrong language version to users.',
         recommendation: 'Add <link rel="alternate" hreflang="he" href="..."> for each language version.',
+        codeExample: '<link rel="alternate" hreflang="he" href="https://yoursite.com/">\n<link rel="alternate" hreflang="en" href="https://yoursite.com/en/">\n<link rel="alternate" hreflang="x-default" href="https://yoursite.com/">',
         estimatedImpact: '+4 points',
-        details: 'Missing hreflang for Hebrew (he) and English (en) versions.',
       });
     }
 
@@ -237,6 +410,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
         description: 'No <link rel="icon"> found in the page.',
         whyItMatters: 'Favicons appear in browser tabs, bookmarks and search results — building brand recognition.',
         recommendation: 'Add <link rel="icon" href="/favicon.ico"> in <head>. Include a 180×180 apple-touch-icon too.',
+        codeExample: '<link rel="icon" href="/favicon.ico" sizes="any">\n<link rel="icon" href="/icon.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="/apple-touch-icon.png">',
         estimatedImpact: '+1 point',
       });
     }
@@ -256,7 +430,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
     }
 
     // ── Sitemap & robots.txt ──────────────────────────────────────────────────
-    if (data.hasSitemap === false) {
+    if (!isDev && data.hasSitemap === false) {
       issues.push({
         title: 'No sitemap.xml found',
         severity: 'medium',
@@ -266,18 +440,19 @@ export class SEOAnalyzer extends BaseAnalyzer {
         estimatedImpact: '+4 points',
       });
     }
-    if (data.hasRobotsTxt === false) {
+    if (!isDev && data.hasRobotsTxt === false) {
       issues.push({
         title: 'No robots.txt found',
         severity: 'low',
         description: `${new URL(data.url).origin}/robots.txt returned an error or 404.`,
         whyItMatters: 'robots.txt guides crawlers and should reference your sitemap.',
         recommendation: 'Create a robots.txt file. Minimum content: User-agent: * Allow: / Sitemap: https://yoursite.com/sitemap.xml',
+        codeExample: 'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /login/\nSitemap: https://yoursite.com/sitemap.xml',
         estimatedImpact: '+2 points',
       });
     }
 
-    // ── Word count / thin content / reading time ──────────────────────────────
+    // ── Word count / thin content ─────────────────────────────────────────────
     const textContent = html
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -286,7 +461,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
       .trim();
     const wordCount = textContent.split(/\s+/).filter(w => w.length > 2).length;
     const readingTimeMin = Math.ceil(wordCount / 200);
-    if (wordCount < 200) {
+    if (!appPage && wordCount < 200) {
       issues.push({
         title: `Thin content — only ${wordCount} words`,
         severity: 'medium',
@@ -294,6 +469,9 @@ export class SEOAnalyzer extends BaseAnalyzer {
         whyItMatters: 'Thin pages often rank poorly. Google prefers pages with substantial, useful content.',
         recommendation: 'Add at least 300-500 words of high-quality, relevant content.',
         estimatedImpact: '+5 points',
+        businessImpact: 'עמוד עם מעט מדי טקסט מדורג נמוך בגוגל — לקוחות פוטנציאליים לא מוצאים אתכם.',
+        difficulty: 'medium',
+        fixTime: '2-3 שעות',
         details: `Detected ~${wordCount} words. Target: ≥ 300 words for informational pages.`,
       });
     }
@@ -302,7 +480,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
     const hasPhone   = PHONE_RE.test(textContent);
     const hasAddress = ADDRESS_RE.test(textContent);
     const hasMapsEmbed = /maps\.google\.|google\.com\/maps|maps\.googleapis/i.test(html);
-    if (!hasPhone && !hasAddress && !hasMapsEmbed) {
+    if (!appPage && !hasPhone && !hasAddress && !hasMapsEmbed) {
       issues.push({
         title: 'No contact information detected',
         severity: 'low',
@@ -310,6 +488,9 @@ export class SEOAnalyzer extends BaseAnalyzer {
         whyItMatters: 'For local businesses, contact details are critical for local SEO and building trust. Google uses them for Local Pack rankings.',
         recommendation: 'Add your phone number, address, and an embedded Google Map to a Contact section. Also add LocalBusiness schema.',
         estimatedImpact: '+3 points',
+        businessImpact: 'לקוחות שמחפשים "עסק + עיר" לא ימצאו אתכם — Google משתמש בפרטי קשר לדירוג מקומי.',
+        difficulty: 'easy',
+        fixTime: '30 דקות',
         details: 'Local businesses without contact info rank lower in Google Maps / local search.',
       });
     }
@@ -323,26 +504,31 @@ export class SEOAnalyzer extends BaseAnalyzer {
         description: 'A phone number is visible in the text but not wrapped in a <a href="tel:..."> link.',
         whyItMatters: 'Mobile users cannot tap a plain text phone number to call. Click-to-call links increase mobile conversion rate significantly.',
         recommendation: 'Wrap your phone number: <a href="tel:+97250XXXXXXX">050-XXXXXXX</a>',
+        codeExample: '<a href="tel:+972501234567">050-123-4567</a>',
         estimatedImpact: '+2 points',
       });
     }
 
     // ── WhatsApp link ─────────────────────────────────────────────────────────
     const hasWhatsApp = /href=["'](?:https?:\/\/wa\.me|https?:\/\/api\.whatsapp\.com|whatsapp:\/\/send)/i.test(html);
-    if (!hasWhatsApp) {
+    if (!appPage && !isDev && !hasWhatsApp) {
       issues.push({
         title: 'No WhatsApp contact link',
         severity: 'low',
         description: 'No WhatsApp link (wa.me) found on the page.',
         whyItMatters: 'WhatsApp is the most common communication channel for Israeli businesses. A WhatsApp button can double contact-form conversion rates.',
         recommendation: 'Add a WhatsApp button: <a href="https://wa.me/97250XXXXXXX">Chat on WhatsApp</a>',
+        codeExample: '<a href="https://wa.me/972501234567" target="_blank" rel="noopener noreferrer">💬 דבר איתנו בוואטסאפ</a>',
         estimatedImpact: '+2 points',
+        businessImpact: 'לקוחות ישראלים מעדיפים WhatsApp — כפתור אחד יכול להכפיל את שיעור יצירת הקשר.',
+        difficulty: 'easy',
+        fixTime: '15 דקות',
       });
     }
 
     // ── Social sharing buttons ────────────────────────────────────────────────
     const hasSocialShare = /(?:sharer|share\?|addthis|sharethis|addtoany|facebook\.com\/sharer|twitter\.com\/intent|whatsapp:\/\/send|linkedin\.com\/shareArticle)/i.test(html);
-    if (!hasSocialShare) {
+    if (!appPage && !isDev && !hasSocialShare) {
       issues.push({
         title: 'No social sharing buttons found',
         severity: 'low',
@@ -350,39 +536,6 @@ export class SEOAnalyzer extends BaseAnalyzer {
         whyItMatters: 'Social shares drive referral traffic and social signals that correlate with better rankings.',
         recommendation: 'Add share buttons for Facebook, WhatsApp, LinkedIn and X/Twitter. Services like AddToAny make it easy.',
         estimatedImpact: '+1 point',
-      });
-    }
-
-    // ── Duplicate meta (og:url vs canonical vs actual URL) ───────────────────
-    const ogUrlMatch = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i)
-      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:url["']/i);
-    const ogUrl = ogUrlMatch?.[1]?.trim() ?? null;
-
-    const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i)
-      ?? html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
-    const canonicalUrl = canonicalMatch?.[1]?.trim() ?? null;
-
-    if (ogUrl && canonicalUrl && ogUrl !== canonicalUrl) {
-      issues.push({
-        title: 'og:url and canonical URL mismatch',
-        severity: 'medium',
-        description: `og:url: "${ogUrl}" ≠ canonical: "${canonicalUrl}"`,
-        whyItMatters: 'Mismatched canonical and og:url confuse search engines and social crawlers about the authoritative URL.',
-        recommendation: 'Ensure og:url and canonical both point to the same canonical version of the page.',
-        estimatedImpact: '+2 points',
-        details: `og:url: ${ogUrl}\ncanonical: ${canonicalUrl}`,
-      });
-    }
-
-    if (canonicalUrl && data.url && !canonicalUrl.includes(new URL(data.url).hostname)) {
-      issues.push({
-        title: 'Canonical URL points to a different domain',
-        severity: 'high',
-        description: `Canonical href="${canonicalUrl}" points to a different domain than the current page.`,
-        whyItMatters: 'A cross-domain canonical tells Google to index a different domain instead — this page will be excluded from search results.',
-        recommendation: 'Verify the canonical URL is correct. If this page should be indexed, change the canonical to match the current URL.',
-        estimatedImpact: '+10 points',
-        details: `Page domain: ${new URL(data.url).hostname}\nCanonical: ${canonicalUrl}`,
       });
     }
 
@@ -396,7 +549,6 @@ export class SEOAnalyzer extends BaseAnalyzer {
         whyItMatters: 'Wix generates JavaScript-heavy pages that can be slower to crawl. Server-side rendering is limited and JS bloat is common.',
         recommendation: 'Ensure all meta tags, schema, and alt text are set in Wix SEO settings. Consider migrating to WordPress or Webflow for advanced SEO control.',
         estimatedImpact: 'Informational',
-        details: 'Wix limitations: no full server-side rendering, limited schema control, slow JS payloads.',
       });
     } else if (cms === 'Squarespace') {
       issues.push({
@@ -409,12 +561,6 @@ export class SEOAnalyzer extends BaseAnalyzer {
       });
     }
 
-    // ── Link count ────────────────────────────────────────────────────────────
-    const allLinks = [...html.matchAll(/<a[^>]+href="([^"]+)"/gi)].map(m => m[1]);
-    const origin = (() => { try { return new URL(data.url).origin; } catch { return ''; } })();
-    const internalLinks = allLinks.filter(l => l.startsWith('/') || l.startsWith(origin));
-    const externalLinks = allLinks.filter(l => l.startsWith('http') && !l.startsWith(origin));
-
     // ── Structured data ───────────────────────────────────────────────────────
     if (!html.includes('application/ld+json') && !html.includes('schema.org')) {
       issues.push({
@@ -423,6 +569,24 @@ export class SEOAnalyzer extends BaseAnalyzer {
         description: 'No structured data markup detected.',
         whyItMatters: 'Structured data enables rich results (stars, FAQs, breadcrumbs) in Google — dramatically increases CTR.',
         recommendation: 'Add JSON-LD schema relevant to your content type (LocalBusiness, Article, Product, etc.).',
+        codeExample: '<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "LocalBusiness",\n  "name": "Your Business",\n  "telephone": "+972-50-000-0000",\n  "address": {\n    "@type": "PostalAddress",\n    "addressLocality": "Tel Aviv",\n    "addressCountry": "IL"\n  }\n}\n</script>',
+        estimatedImpact: '+3 points',
+      });
+    }
+
+    // ── Link count ────────────────────────────────────────────────────────────
+    const allLinks = [...html.matchAll(/<a[^>]+href="([^"]+)"/gi)].map(m => m[1]);
+    const origin = (() => { try { return new URL(data.url).origin; } catch { return ''; } })();
+    const internalLinks = allLinks.filter(l => l.startsWith('/') || l.startsWith(origin));
+    const externalLinks = allLinks.filter(l => l.startsWith('http') && !l.startsWith(origin));
+
+    if (allLinks.length > 300) {
+      issues.push({
+        title: `Too many links on page (${allLinks.length})`,
+        severity: 'medium',
+        description: `Found ${allLinks.length} links on the page (threshold: 300).`,
+        whyItMatters: 'Google crawlers follow a limited number of links per page. Too many links dilute PageRank across all linked pages.',
+        recommendation: 'Remove unnecessary links, especially navigation duplicates and footer link spam.',
         estimatedImpact: '+3 points',
       });
     }
@@ -447,7 +611,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
         imagesWithAlt: images.filter(i => i.hasAlt).length,
         internalLinks: internalLinks.length,
         externalLinks: externalLinks.length,
-        hasCanonical: html.includes('rel="canonical"') || html.includes("rel='canonical'"),
+        hasCanonical,
         hasOgTags: hasOgTitle,
         hasOgImage,
         hasTwitterCard: html.includes('twitter:card'),
@@ -464,6 +628,7 @@ export class SEOAnalyzer extends BaseAnalyzer {
         detectedCms: data.techStack?.cms ?? null,
         detectedFramework: data.techStack?.framework ?? null,
         techTags: data.techStack?.tags ?? [],
+        isDevelopment: isDev,
       },
     };
   }

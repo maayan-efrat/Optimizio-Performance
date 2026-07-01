@@ -26,6 +26,37 @@ export const dictionary = {
     dashboardDescription: 'After scanning a URL you get a full breakdown with scores and an AI summary of what to fix first.',
     footerText: 'Built to help developers and product teams ship faster, with fewer performance regressions.',
 
+    howItWorks: {
+      heading: 'How it works — three simple steps',
+      subheading: 'No setup, no plugin, no developer needed. Paste a URL and get a complete report in under a minute.',
+      steps: [
+        {
+          number: '01',
+          title: 'Enter any URL',
+          description: 'Paste the address of any public website — your own, a competitor\'s, or a client\'s. Optimizio works on any domain instantly, with no installation or browser extension required.',
+        },
+        {
+          number: '02',
+          title: 'AI audits 9 categories in under 60 seconds',
+          description: 'The engine checks Performance, SEO, Accessibility, Security, Mobile UX, Privacy, Schema markup, JavaScript and CSS quality, and all internal links — fully automatically, in parallel.',
+        },
+        {
+          number: '03',
+          title: 'Receive a prioritized action plan',
+          description: 'Every issue is explained in plain language with a severity rating, estimated business impact, and clear step-by-step fix instructions. Export the full report to PDF or share it directly with your developer.',
+        },
+      ],
+    },
+
+    whySection: {
+      heading: 'Why website performance matters for your business',
+      items: [
+        { stat: '53%', text: 'of mobile visitors leave a page that takes longer than 3 seconds to load — directly reducing sales.' },
+        { stat: '+28%', text: 'more conversions when page load time drops from 3 seconds to under 1 second.' },
+        { stat: 'Top 3', text: 'Google ranking factors include page speed and Core Web Vitals — slow sites rank lower in search results.' },
+      ],
+    },
+
     // Auth
     login: {
       title: 'Welcome back',
@@ -260,6 +291,37 @@ export const dictionary = {
     dashboardTitle: 'דוגמת תוצאת סריקה',
     dashboardDescription: 'לאחר סריקת URL תקבלי פירוט מלא עם ציונים וסיכום AI של מה לתקן ראשון.',
     footerText: 'נבנה כדי לעזור למפתחים וצוותי מוצר לספק מהר יותר, עם פחות רגרסיות בביצועים.',
+
+    howItWorks: {
+      heading: 'איך זה עובד — שלושה שלבים פשוטים',
+      subheading: 'ללא התקנה, ללא תוסף, ללא מפתח. הדביקו URL וקבלו דוח מלא תוך פחות מדקה.',
+      steps: [
+        {
+          number: '01',
+          title: 'הזינו כל URL',
+          description: 'הדביקו כתובת של כל אתר ציבורי — שלכם, של מתחרה, או של לקוח. Optimizio עובד על כל דומיין מיידית, ללא התקנה או הרחבת דפדפן.',
+        },
+        {
+          number: '02',
+          title: 'AI סורק 9 קטגוריות תוך 60 שניות',
+          description: 'המנוע בודק ביצועים, SEO, נגישות, אבטחה, חוויית מובייל, פרטיות, Schema, איכות JavaScript ו-CSS, וכל הקישורים הפנימיים — אוטומטית ובמקביל.',
+        },
+        {
+          number: '03',
+          title: 'קבלו תוכנית פעולה ממוינת לפי עדיפות',
+          description: 'כל בעיה מוסברת בשפה פשוטה עם רמת חומרה, השפעה עסקית משוערת, והוראות תיקון ברורות צעד-אחר-צעד. ייצאו את הדוח המלא ל-PDF או שתפו ישירות עם מפתח.',
+        },
+      ],
+    },
+
+    whySection: {
+      heading: 'למה ביצועי אתר חשובים לעסק שלך',
+      items: [
+        { stat: '53%', text: 'מהגולשים בניידים עוזבים דף שלוקח יותר מ-3 שניות לטעון — ישירות פוגע במכירות.' },
+        { stat: '+28%', text: 'יותר המרות כשזמן הטעינה יורד מ-3 שניות לפחות משניה אחת.' },
+        { stat: 'Top 3', text: 'מבין גורמי הדירוג של Google נמצאים מהירות דף ו-Core Web Vitals — אתרים איטיים מדורגים נמוך בתוצאות החיפוש.' },
+      ],
+    },
 
     // Auth
     login: {

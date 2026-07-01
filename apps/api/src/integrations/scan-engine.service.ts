@@ -14,6 +14,23 @@ import { PSIService, CWVData } from './psi.service';
 
 const UA = 'Mozilla/5.0 (compatible; Optimizio-Scanner/2.0; +https://optimizio.app)';
 
+function isDevelopmentUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    if (hostname === 'localhost') return true;
+    if (/^127\./.test(hostname)) return true;
+    if (/^192\.168\./.test(hostname)) return true;
+    if (/^10\./.test(hostname)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+    if (hostname.endsWith('.local') || hostname.endsWith('.test') || hostname.endsWith('.internal')) return true;
+    if (hostname.includes('ngrok') || hostname.includes('localhost.run')) return true;
+    // Vercel/Netlify preview (not canonical www. domain)
+    if (/\.vercel\.app$/.test(hostname) && !hostname.startsWith('www.')) return true;
+    if (/\.netlify\.app$/.test(hostname) && !hostname.startsWith('www.')) return true;
+    return false;
+  } catch { return false; }
+}
+
 // Weights for overall score — links excluded (informational only)
 const SCORE_WEIGHTS: Record<string, number> = {
   performance:      0.25,
@@ -85,11 +102,14 @@ export class ScanEngineService {
 
     // Probe robots.txt, sitemap.xml, HTTPS redirect, and custom 404 in parallel
     const origin = new URL(url).origin;
-    const [hasSitemap, hasRobotsTxt, httpRedirectsToHttps, hasCustom404] = await Promise.all([
+    const isDevelopment = isDevelopmentUrl(url);
+
+    const [hasSitemap, hasRobotsTxt, httpRedirectsToHttps, hasCustom404, exposedPaths] = await Promise.all([
       this.probeExists(`${origin}/sitemap.xml`),
       this.probeExists(`${origin}/robots.txt`),
       this.checkHttpsRedirect(url),
       this.probe404(origin),
+      isDevelopment ? Promise.resolve([]) : this.probeSensitivePaths(origin),
     ]);
 
     const techStack = this.detectTechStack(html, headers);
@@ -98,7 +118,7 @@ export class ScanEngineService {
       url, html, responseHeaders: headers, fetchedImages,
       fetchDurationMs: durationMs, htmlSizeBytes: sizeBytes,
       hasSitemap, hasRobotsTxt, httpRedirectsToHttps,
-      hasCustom404, techStack,
+      hasCustom404, techStack, isDevelopment, exposedPaths,
     };
 
     const results = await Promise.all(
@@ -183,11 +203,36 @@ export class ScanEngineService {
     }
   }
 
+  private async probeSensitivePaths(origin: string): Promise<string[]> {
+    const PATHS = [
+      '/.env', '/.env.local', '/.env.production', '/.env.development',
+      '/.git/config', '/.git/HEAD',
+      '/backup.zip', '/backup.sql', '/database.sql', '/db.sql', '/dump.sql',
+      '/phpinfo.php', '/info.php',
+      '/wp-config.php', '/config.php', '/config.json', '/config.yml',
+      '/.DS_Store', '/.svn/entries',
+      '/web.config', '/crossdomain.xml',
+      '/server-status', '/server-info',
+      '/admin.php', '/install.php', '/setup.php',
+    ];
+    const exposed: string[] = [];
+    await Promise.allSettled(PATHS.map(async path => {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 3_000);
+        const res = await fetch(`${origin}${path}`, { method: 'HEAD', headers: { 'User-Agent': UA }, signal: ctrl.signal });
+        clearTimeout(t);
+        if (res.ok) exposed.push(path);
+      } catch {}
+    }));
+    return exposed;
+  }
+
   private async probe404(origin: string): Promise<boolean> {
     try {
       const path = `/optimizio-404-check-${Date.now()}`;
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 5_000);
+      const t = setTimeout(() => ctrl.abort(), 10_000);
       const res = await fetch(`${origin}${path}`, {
         headers: { 'User-Agent': UA },
         signal: ctrl.signal,
@@ -197,7 +242,8 @@ export class ScanEngineService {
       if (res.status === 404) return true;
       if (res.status === 200) {
         const text = await res.text();
-        return /404|not found|page not found|עמוד לא נמצא/i.test(text.slice(0, 4000));
+        // Hebrew: "הדף לא נמצא", "עמוד לא נמצא"; English: "not found", "page not found"
+        return /404|not found|page not found|הדף לא נמצא|עמוד לא נמצא/i.test(text.slice(0, 4000));
       }
       return false;
     } catch {

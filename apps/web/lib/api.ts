@@ -33,7 +33,11 @@ export interface AnalyzerIssue {
   description: string;
   whyItMatters: string;
   recommendation: string;
+  codeExample?: string;
   estimatedImpact?: string;
+  businessImpact?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  fixTime?: string;
   resourceUrl?: string;
   details?: string;
   affectedUrls?: string[];
@@ -185,13 +189,13 @@ export const api = {
     listByProject: (projectId: string) => request<Scan[]>(`/scans/project/${projectId}`),
     compare: (urls: string[]) =>
       request<CompareResult[]>('/scans/compare', { method: 'POST', body: JSON.stringify({ urls }) }),
-    saveExport: (scanId: string, userContext: string, lang: string) =>
+    saveExport: (scanId: string, userContext: string, lang: string, scoreAtExport?: number | null, promptText?: string) =>
       request<{ credits: number; exportId: string; exportCount: number }>(`/scans/${scanId}/export-prompt`, {
-        method: 'POST', body: JSON.stringify({ userContext, lang }),
+        method: 'POST', body: JSON.stringify({ userContext, lang, scoreAtExport, promptText }),
       }),
     getExportCount: (scanId: string) =>
       request<{ count: number }>(`/scans/${scanId}/export-count`),
     getExports: (scanId: string) =>
-      request<Array<{ id: string; userContext: string; lang: string; createdAt: string }>>(`/scans/${scanId}/exports`),
+      request<Array<{ id: string; userContext: string; lang: string; createdAt: string; scoreAtExport: number | null; creditsCharged: number; promptText: string | null }>>(`/scans/${scanId}/exports`),
   },
 };

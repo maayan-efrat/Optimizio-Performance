@@ -5,12 +5,7 @@ export const alt = 'Optimizio Performance — ניתוח ביצועי אתרים
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-const heeboRegular = fetch(new URL('../assets/fonts/Heebo-Regular.woff', import.meta.url)).then(res => res.arrayBuffer());
-const heeboExtraBold = fetch(new URL('../assets/fonts/Heebo-ExtraBold.woff', import.meta.url)).then(res => res.arrayBuffer());
-
 export default async function Image() {
-  const [regular, extraBold] = await Promise.all([heeboRegular, heeboExtraBold]);
-
   return new ImageResponse(
     (
       <div
@@ -22,7 +17,7 @@ export default async function Image() {
           alignItems: 'center',
           justifyContent: 'center',
           background: 'linear-gradient(135deg, #09090B 0%, #1e1b4b 50%, #09090B 100%)',
-          fontFamily: 'Heebo',
+          fontFamily: 'system-ui, sans-serif',
         }}
       >
         {/* Purple glow */}
@@ -92,10 +87,6 @@ export default async function Image() {
     ),
     {
       ...size,
-      fonts: [
-        { name: 'Heebo', data: regular, weight: 400, style: 'normal' },
-        { name: 'Heebo', data: extraBold, weight: 800, style: 'normal' },
-      ],
     }
   );
 }

@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Allow: /features
+Allow: /pricing
+Allow: /faq
+Allow: /privacy
+
+# App pages — require authentication, no indexing value
+Disallow: /dashboard
+Disallow: /scan
+Disallow: /report/
+Disallow: /admin
+Disallow: /onboarding
+Disallow: /settings
+Disallow: /payment/
+Disallow: /scan-details
+Disallow: /competitor-analysis
+Disallow: /share/
+Disallow: /reports
+
+Sitemap: https://optimizio.co.il/sitemap.xml

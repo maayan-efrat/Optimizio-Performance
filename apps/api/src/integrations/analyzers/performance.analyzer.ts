@@ -49,19 +49,32 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
       });
     }
 
-    // ── Gzip / Brotli compression ─────────────────────────────────────────────
+    // ── Gzip / Brotli compression (skip in dev — local servers often don't compress) ──
     const encoding = h('content-encoding').toLowerCase();
-    if (!encoding) {
+    const isDev = data.isDevelopment ?? false;
+    if (!isDev && !encoding) {
       issues.push({
         title: 'HTTP compression not enabled (no Gzip/Brotli)',
         severity: 'high',
         description: 'The server returns HTML without Content-Encoding compression.',
         whyItMatters: 'Compression reduces HTML transfer size by 60-80%. Most sites save 50-200KB per page.',
         recommendation: 'Enable Gzip or Brotli compression on your web server. For Nginx: gzip on; for Apache: mod_deflate.',
+        codeExample: '# In nginx.conf:\ngzip on;\ngzip_types text/html text/css application/javascript;\ngzip_comp_level 6;\n\n# Or better — enable Brotli:\nbrotli on;\nbrotli_comp_level 6;',
         estimatedImpact: '+8-15 points',
         details: 'No Content-Encoding header found. Typical savings: HTML 75%, CSS 80%, JS 70%.',
       });
-    } else if (encoding !== 'br' && encoding !== 'gzip' && encoding !== 'deflate') {
+    } else if (!isDev && encoding === 'gzip') {
+      issues.push({
+        title: 'Using Gzip compression — consider upgrading to Brotli',
+        severity: 'low',
+        description: 'Server uses Gzip compression. Brotli (br) compresses 15-25% better for the same CPU cost.',
+        whyItMatters: 'Brotli achieves better compression ratios than Gzip, reducing transfer size further.',
+        recommendation: 'Enable Brotli on your web server alongside Gzip as a fallback for older clients.',
+        codeExample: '# In nginx.conf (requires ngx_brotli module):\nbrotli on;\nbrotli_comp_level 6;\nbrotli_types text/html text/css application/javascript application/json;',
+        estimatedImpact: '+2-4 points',
+        details: 'Brotli is supported by 95%+ of browsers. Enable it first, keep Gzip as fallback.',
+      });
+    } else if (encoding && encoding !== 'br' && encoding !== 'gzip' && encoding !== 'deflate') {
       issues.push({
         title: `Unusual Content-Encoding: "${encoding}"`,
         severity: 'low',
@@ -72,22 +85,23 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
       });
     }
 
-    // ── Cache-Control headers ─────────────────────────────────────────────────
+    // ── Cache-Control headers (skip in dev) ───────────────────────────────────
     const cacheControl = h('cache-control');
     const expires = h('expires');
     const etag = h('etag');
     const lastModified = h('last-modified');
-    if (!cacheControl && !expires) {
+    if (!isDev && !cacheControl && !expires) {
       issues.push({
         title: 'No cache headers — every visit re-downloads everything',
         severity: 'high',
         description: 'No Cache-Control or Expires header found on the HTML response.',
         whyItMatters: 'Without caching, returning visitors download the full page on every visit, wasting bandwidth.',
         recommendation: 'Add Cache-Control: public, max-age=3600 for static pages. Use Cache-Control: no-cache, must-revalidate for dynamic pages.',
+        codeExample: '# In nginx.conf:\nlocation ~* \\.(?:css|js|woff2|png|jpg|svg)$ {\n  add_header Cache-Control "public, max-age=31536000, immutable";\n}\nlocation / {\n  add_header Cache-Control "public, max-age=3600, must-revalidate";\n}',
         estimatedImpact: '+5-10 points',
         details: `No Cache-Control, Expires, ETag, or Last-Modified found.`,
       });
-    } else if (cacheControl && (cacheControl.includes('no-store') || cacheControl.includes('no-cache'))) {
+    } else if (!isDev && cacheControl && (cacheControl.includes('no-store') || cacheControl.includes('no-cache'))) {
       if (!etag && !lastModified) {
         issues.push({
           title: 'Cache disabled without revalidation support',
@@ -95,6 +109,7 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
           description: `Cache-Control: ${cacheControl} — but no ETag or Last-Modified to enable conditional requests.`,
           whyItMatters: 'Without ETags, the browser re-downloads content instead of validating staleness.',
           recommendation: 'Add ETag or Last-Modified headers so browsers can revalidate without downloading.',
+          codeExample: '# In nginx.conf:\nadd_header ETag $request_id;\nadd_header Last-Modified $date_gmt;\n\n# Or in Express.js:\napp.set("etag", "strong");',
           estimatedImpact: '+3 points',
           details: `Cache-Control: ${cacheControl}. Add ETag generation on your server.`,
         });
@@ -205,7 +220,14 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
     const scriptMatches = [...html.matchAll(/<script[^>]+src="([^"]+)"[^>]*>/gi)];
     // nomodule scripts (legacy-browser fallback bundles) are skipped entirely by
     // any browser that supports module scripts, so they don't block rendering there.
-    const blockingJs = scriptMatches.filter(m => !m[0].includes('defer') && !m[0].includes('async') && !m[0].includes('nomodule'));
+    // In dev mode, Next.js adds HMR scripts (webpack.js) without defer — skip these.
+    const NEXT_INTERNAL = /\/_next\/static\//;
+    const blockingJs = scriptMatches.filter(m =>
+      !m[0].includes('defer') &&
+      !m[0].includes('async') &&
+      !m[0].includes('nomodule') &&
+      !(isNextDevServer && NEXT_INTERNAL.test(m[1]))
+    );
     if (blockingJs.length > 0) {
       issues.push({
         title: `${blockingJs.length} render-blocking script(s)`,
@@ -213,6 +235,7 @@ export class PerformanceAnalyzer extends BaseAnalyzer {
         description: `${blockingJs.length} scripts loaded synchronously in <head>.`,
         whyItMatters: 'Synchronous scripts block HTML parsing and delay First Contentful Paint.',
         recommendation: 'Add defer to scripts that run after DOM load, async for analytics.',
+        codeExample: '<!-- Add defer for scripts that run after page load: -->\n<script src="/analytics.js" defer></script>\n\n<!-- Add async for independent scripts (analytics, ads): -->\n<script src="https://www.googletagmanager.com/gtag/js" async></script>',
         estimatedImpact: '+5-12 points',
         affectedUrls: blockingJs.map(m => m[1]),
         details: `${blockingJs.length} of ${scriptMatches.length} external scripts are render-blocking.`,

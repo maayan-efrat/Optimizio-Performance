@@ -4,7 +4,15 @@ export interface AnalyzerIssue {
   description: string;
   whyItMatters: string;
   recommendation: string;
+  /** Short code snippet shown in the report as an example fix */
+  codeExample?: string;
   estimatedImpact?: string;
+  /** Plain-language business impact — shown to non-technical users */
+  businessImpact?: string;
+  /** How hard to fix */
+  difficulty?: 'easy' | 'medium' | 'hard';
+  /** Rough fix time, e.g. "15 דקות" or "1-2 hours" */
+  fixTime?: string;
   resourceUrl?: string;
   details?: string;
   affectedUrls?: string[];
@@ -48,6 +56,10 @@ export interface WebsiteData {
   httpRedirectsToHttps?: boolean;
   hasCustom404?: boolean;
   techStack?: TechStack;
+  /** True when the scanned URL is a local/dev/preview environment */
+  isDevelopment?: boolean;
+  /** Sensitive file paths that returned HTTP 200 (only probed in production) */
+  exposedPaths?: string[];
 }
 
 export abstract class BaseAnalyzer {

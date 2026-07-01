@@ -76,12 +76,15 @@ model Scan {
 }
 
 model PromptExport {
-  id          String   @id @default(cuid())
-  userId      String
-  scanId      String
-  userContext String   @default("")
-  lang        String   @default("he")
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  scanId         String
+  userContext    String   @default("")
+  lang           String   @default("he")
+  scoreAtExport  Int?
+  creditsCharged Int      @default(200)
+  promptText     String?
+  createdAt      DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
   scan Scan @relation(fields: [scanId], references: [id])

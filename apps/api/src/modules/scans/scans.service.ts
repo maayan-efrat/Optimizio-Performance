@@ -144,7 +144,14 @@ export class ScansService {
     });
   }
 
-  async saveExport(scanId: string, userId: string, userContext: string, lang: string): Promise<{ credits: number; exportId: string; exportCount: number }> {
+  async saveExport(
+    scanId: string,
+    userId: string,
+    userContext: string,
+    lang: string,
+    scoreAtExport?: number | null,
+    promptText?: string,
+  ): Promise<{ credits: number; exportId: string; exportCount: number }> {
     const EXPORT_COST = 200;
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (user.credits < EXPORT_COST) {
@@ -157,7 +164,15 @@ export class ScansService {
         data: { credits: { decrement: EXPORT_COST } },
       }),
       (this.prisma as any).promptExport.create({
-        data: { scanId, userId, userContext: userContext ?? '', lang: lang ?? 'he' },
+        data: {
+          scanId,
+          userId,
+          userContext: userContext ?? '',
+          lang: lang ?? 'he',
+          creditsCharged: EXPORT_COST,
+          scoreAtExport: scoreAtExport ?? null,
+          promptText: promptText ?? null,
+        },
       }),
     ]);
 
@@ -169,11 +184,14 @@ export class ScansService {
     return (this.prisma as any).promptExport.count({ where: { scanId } });
   }
 
-  async getExports(scanId: string, userId: string): Promise<Array<{ id: string; userContext: string; lang: string; createdAt: string }>> {
+  async getExports(scanId: string, userId: string): Promise<Array<{
+    id: string; userContext: string; lang: string; createdAt: string;
+    scoreAtExport: number | null; creditsCharged: number; promptText: string | null;
+  }>> {
     const records = await (this.prisma as any).promptExport.findMany({
       where: { scanId, userId },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, userContext: true, lang: true, createdAt: true },
+      select: { id: true, userContext: true, lang: true, createdAt: true, scoreAtExport: true, creditsCharged: true, promptText: true },
     });
     return records;
   }
