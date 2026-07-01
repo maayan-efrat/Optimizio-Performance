@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -9,7 +9,7 @@ import { useLocale } from '@/contexts/locale';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const { locale } = useLocale();
   const isRtl = locale === 'he';
   const router = useRouter();
@@ -158,5 +158,13 @@ export default function ResetPasswordPage() {
         </div>
       </motion.div>
     </main>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

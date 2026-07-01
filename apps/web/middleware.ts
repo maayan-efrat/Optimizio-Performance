@@ -36,8 +36,8 @@ export const config = {
     {
       source: '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|txt|xml)$).*)',
       missing: [
-        { type: 'header' as const, key: 'next-router-prefetch' },
-        { type: 'header' as const, key: 'purpose', value: 'prefetch' },
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
       ],
     },
   ],
