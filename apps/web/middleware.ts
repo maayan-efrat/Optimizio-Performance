@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV === 'development';
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api').replace('/api', '');
 
 export function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const nonce = btoa(crypto.randomUUID());
 
   const csp = [
     "default-src 'self'",
